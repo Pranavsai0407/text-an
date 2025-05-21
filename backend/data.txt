@@ -1,0 +1,99 @@
+
+ABC Lighting Corp - Knowledge Base
+----------------------------------
+
+Parent Dataset: Company Overview
+
+Company Name: ABC Lighting Corp
+Company Owner: Pranav sai
+Role: Customer Service Representative
+
+Product Offerings:
+- Solar-Powered Street Lights
+- Solar Driveway Markers
+- Outdoor Wall-Mounted Solar Lights
+- Decorative Garden Solar Lamps
+- Motion-Activated Solar Security Lights
+
+Locations:
+1. Patna, Bihar, India
+2. Ranchi, Jharkhand, India
+
+Business Hours:
+- Monday – Friday: 9:00 AM – 6:00 PM IST
+- Saturday: 10:00 AM – 4:00 PM IST
+- Sunday: Closed
+
+----------------------------------
+
+Child Dataset 1: Solar-Powered Street Light
+
+Product Name: FlyHawk Series 30W All-In-One Solar Street Light
+
+Specifications:
+- Solar Panel: 18V / 40W Monocrystalline
+- Battery: 12.8V, 16,500mAh LiFePO4
+- LED Output: 3500 Lumens (SMD 5050 LED Chip)
+- Color Temperature: Customizable (3000K–6000K)
+- Charging Time: 6–8 hours
+- Working Time: 3–5 nights on a full charge
+- Installation Height: 4–5 meters
+- IP Rating: IP65 (Waterproof)
+- Warranty: 3 years
+
+Applications: Suitable for streets, parking lots, parks, and playgrounds.
+
+Image: https://m.media-amazon.com/images/I/81IBaiiwhbL.jpg
+----------------------------------
+
+Child Dataset 2: Solar-Powered Driveway Light
+
+Product Name: Solar Driveway Marker Lights
+
+Specifications:
+- Power Source: Solar (5–6 hours charging time)
+- Illumination Duration: 8–10 hours per night
+- Material: Plastic and stainless steel (rust-resistant)
+- Features: Waterproof, durable, easy assembly
+- Color: Bright red reflectors for enhanced visibility
+
+Applications: Ideal for driveways, entrances, parking lots, and pathways.
+
+Image: https://m.media-amazon.com/images/I/51kESWfJL8L.jpg
+Product Page: https://www.the-sun.com/motors/11211576/amazon-product-driveway-fog-rain-snow/
+
+----------------------------------
+
+Child Dataset 3: Solar-Powered Outdoor Wall Light
+
+Product Name: Maxsa Motion-Activated Dual Head Solar Security Light
+
+Specifications:
+- LED Count: 120 LEDs
+- Features: Motion detection, adjustable brightness, weather-resistant
+- Installation: Easy to mount on walls, no wiring required
+- Color Temperature: Daylight White – 6000K
+- Working Time: Up to 12 hours on a full charge
+- IP Rating: IP65 (Waterproof)
+
+Applications: Perfect for enhancing security around homes, garages, and backyards.
+
+Image: https://m.media-amazon.com/images/I/51y8Z-ipJmL._SL500_.jpg
+Product Page: https://www.realsimple.com/best-outdoor-mounted-solar-lights-6743389
+
+----------------------------------
+
+Assets
+
+Images:
+- Solar Street Light: https://th.bing.com/th/id/OIP.phez5I2hnbi_JGFC9vox5gHaFK?rs=1&pid=ImgDetMain
+- Driveway Light: https://m.media-amazon.com/images/I/51kESWfJL8L.jpg
+- Wall Light: https://m.media-amazon.com/images/I/51y8Z-ipJmL._SL500_.jpg
+
+PDF Brochures:
+- FlyHawk 30W Solar Street Light: https://www.solarlamp-led.com/Uploads/2021-03-18/6052f3c6a5c3b.pdf
+- Maxsa Motion-Activated Dual Head Solar Security Light: https://www.realsimple.com/thmb/Maxsa-Motion-Activated-Dual-Head-Solar-Security-Light.pdf
+
+----------------------------------
+
+This knowledge base is designed to assist customer service representatives in providing detailed information about ABC Lighting Corp's products and services.

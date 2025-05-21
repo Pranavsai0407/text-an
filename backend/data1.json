@@ -1,0 +1,246 @@
+{
+    "company": {
+      "companyName": "ABC Lighting Corporation",
+      "companyOwner": "Pranav sai",
+      "description": "ABC Lighting Corporation is a leading provider of innovative, eco-friendly lighting solutions specializing in solar-powered outdoor lights. Our goal is to brighten your world sustainably.",
+      "locations": [
+        {
+          "name": "Headquarters",
+          "address": "123 Solar Blvd, Sunnyvale, CA 94086",
+          "phone": "+1 (800) 555-0101"
+        },
+        {
+          "name": "East Coast Branch",
+          "address": "456 Bright Lane, Edison, NJ 08817",
+          "phone": "+1 (800) 555-0102"
+        }
+      ],
+      "businessHours": {
+        "mondayToFriday": "9:00 AM - 6:00 PM",
+        "saturday": "10:00 AM - 4:00 PM",
+        "sunday": "Closed"
+      },
+      "products": [
+        {
+          "name": "SolarMax Street Light",
+          "id": "solarmax-street-light"
+        },
+        {
+          "name": "DriveLite Pro",
+          "id": "drivelite-pro"
+        },
+        {
+          "name": "EcoWall Shine",
+          "id": "ecowall-shine"
+        }
+      ]
+    },
+    "productDetails": [
+      {
+        "id": "solarmax-street-light",
+        "name": "SolarMax Street Light",
+        "category": "Solar Street Lighting",
+        "description": "The SolarMax Street Light is a commercial-grade solar-powered LED street light designed for urban, industrial, and municipal use. It provides consistent illumination throughout the night with zero electricity cost.",
+        "features": [
+          "Monocrystalline solar panel with 22% efficiency",
+          "Intelligent dusk-to-dawn lighting system",
+          "Waterproof IP67 aluminum housing",
+          "Remote control with multiple brightness modes",
+          "Anti-theft design with tamper-proof screws"
+        ],
+        "specifications": {
+          "solarPanel": "120W Monocrystalline",
+          "batteryCapacity": "60,000 mAh LiFePO4 battery",
+          "lightOutput": "12,000 lumens",
+          "operatingTime": "12-16 hours per night",
+          "chargingTime": "6-8 hours",
+          "motionSensor": true,
+          "workingTemperature": "-20°C to 60°C",
+          "lifespan": "50,000+ hours",
+          "heightRecommendation": "Pole mounted at 6-10 meters"
+        },
+        "dimensions": {
+          "length": "42 inches",
+          "width": "14 inches",
+          "height": "3.5 inches",
+          "weight": "15 kg"
+        },
+        "warranty": "5 years on the solar panel, 3 years on battery and electronics",
+        "image": "https://th.bing.com/th/id/OIP.phez5I2hnbi_JGFC9vox5gHaFK?rs=1&pid=ImgDetMain",
+        "faq": [
+          {
+            "question": "Can it work in cloudy weather?",
+            "answer": "Yes, the SolarMax stores power in its high-capacity battery to function for up to 2 days without sunlight."
+          },
+          {
+            "question": "Is professional installation required?",
+            "answer": "While professional installation is recommended for municipalities, individual units can be installed with basic tools."
+          }
+        ]
+      },
+      {
+        "id": "drivelite-pro",
+        "name": "DriveLite Pro",
+        "category": "Solar Driveway Lights",
+        "description": "DriveLite Pro is a sleek, durable solar-powered driveway light designed to withstand vehicles and the elements. Ideal for pathways, garden edges, and driveways.",
+        "features": [
+          "Die-cast aluminum body with reinforced glass top",
+          "Pressure resistant (can bear up to 5 tons)",
+          "IP68 waterproof for heavy rains and snow",
+          "Automatic on/off light sensor",
+          "Multiple LED color options (white, warm white, blue)"
+        ],
+        "specifications": {
+          "solarPanel": "5V 2W polycrystalline",
+          "batteryCapacity": "2000 mAh NiMH battery",
+          "lightOutput": "180 lumens",
+          "operatingTime": "8-10 hours per night",
+          "chargingTime": "4-6 hours",
+          "installation": "Surface mount with included screws",
+          "lifespan": "30,000 hours",
+          "material": "Aluminum + tempered glass"
+        },
+        "dimensions": {
+          "length": "5.5 inches",
+          "width": "5.5 inches",
+          "height": "1.8 inches",
+          "weight": "1.2 kg"
+        },
+        "warranty": "2 years on all parts",
+        "image": "https://m.media-amazon.com/images/I/51kESWfJL8L.jpg",
+        "faq": [
+          {
+            "question": "Is it car-safe?",
+            "answer": "Absolutely! It's designed to handle the weight of sedans, trucks, and light industrial vehicles."
+          },
+          {
+            "question": "Can I use it around pools?",
+            "answer": "Yes. Its IP68 rating means it is fully waterproof and suitable for poolside lighting."
+          }
+        ]
+      },
+      {
+        "id": "ecowall-shine",
+        "name": "EcoWall Shine",
+        "category": "Solar Wall-Mounted Lights",
+        "description": "EcoWall Shine is a modern, wall-mounted solar light with high brightness and motion detection, perfect for entrances, patios, and perimeter walls.",
+        "features": [
+          "Motion detection up to 8 meters",
+          "3 intelligent lighting modes (Always On, Dim+Motion, Motion Only)",
+          "Sleek, low-profile black finish",
+          "IP65 weatherproofing",
+          "Tool-free mounting with adhesives or screws"
+        ],
+        "specifications": {
+          "solarPanel": "6V 3W polycrystalline",
+          "batteryCapacity": "3000 mAh Li-ion battery",
+          "lightOutput": "800 lumens",
+          "operatingTime": "6-10 hours per night",
+          "chargingTime": "4-6 hours",
+          "sensorRange": "8 meters at 120° angle",
+          "installationHeight": "2-3 meters recommended",
+          "lifespan": "25,000+ hours"
+        },
+        "dimensions": {
+          "length": "8 inches",
+          "width": "4 inches",
+          "height": "2.5 inches",
+          "weight": "0.8 kg"
+        },
+        "warranty": "3 years on battery and motion sensor",
+        "image": "https://m.media-amazon.com/images/I/51y8Z-ipJmL._SL500_.jpg",
+        "faq": [
+          {
+            "question": "Can it be installed without drilling?",
+            "answer": "Yes, high-strength adhesives are included for no-drill installations."
+          },
+          {
+            "question": "Does the light stay on all night?",
+            "answer": "In Always On mode, it stays lit for up to 6 hours. Other modes conserve energy to extend lighting time."
+          }
+        ]
+      }
+    ]
+  }
+
+
+  {
+  "id": 1,
+  "name": "Text Anything",
+  "description": "Text Anything is an SMS and WhatsApp marketing platform that helps businesses drive revenue through conversational messaging, 1-way alerts, QR-based lead capture, and more. The platform supports broadcast messaging, drip campaigns, opt-in collection, and multi-agent inboxes.",
+  "status": "Active",
+  "roleData": {
+    "role": "service bot",
+    "roleDescription": "Handles service-related queries."
+  },
+  "children": [
+    {
+      "id": 11,
+      "name": "SMS Marketing",
+      "description": "SMS marketing product with a built-in contact manager, drip campaigns, broadcast messaging, opt-in keyword-based capture, QR-code generation, and compliance tools like opt-out handling.",
+      "status": "Active",
+      "children": [
+        {
+          "id": 111,
+          "name": "Starter Plan - SMS",
+          "description": "Supports up to 10,000 contacts, 2,000 SMS/day, 3 QR campaigns, and standard automation features.",
+          "status": "Active"
+        },
+        {
+          "id": 112,
+          "name": "Growth Plan - SMS",
+          "description": "Supports 100,000 contacts, 25,000–50,000 SMS/day, 10 QR campaigns, advanced automation, and integrations.",
+          "status": "Active"
+        },
+        {
+          "id": 113,
+          "name": "Premium Plan - SMS",
+          "description": "Supports 750,000 contacts, 100,000+ SMS/day, 100 QR campaigns, with lowest per-message cost and white-glove support.",
+          "status": "Active"
+        }
+      ]
+    },
+    {
+      "id": 12,
+      "name": "WhatsApp Marketing",
+      "description": "Meta-verified WhatsApp marketing platform offering bulk and automated messaging, green tick verification, quick replies, conversational templates, and support for media-rich campaigns.",
+      "status": "Active",
+      "children": [
+        {
+          "id": 121,
+          "name": "Free Trial - WhatsApp",
+          "description": "2-week trial with 1,000 contact limit, access to full WhatsApp features, no credit card needed, includes API onboarding.",
+          "status": "Draft"
+        },
+        {
+          "id": 122,
+          "name": "Paid Plan - WhatsApp",
+          "description": "Supports 10,000 to 750,000 contacts, Meta tier-based daily messaging limits, includes opt-in flows, API access, auto-replies, and broadcast management.",
+          "status": "Active"
+        }
+      ]
+    },
+    {
+      "id": 13,
+      "name": "Salesforce Products",
+      "description": "Native Salesforce apps to send SMS and WhatsApp messages directly from within the Salesforce CRM, with automation and workflow integration.",
+      "status": "Active",
+      "children": [
+        {
+          "id": 131,
+          "name": "Text Anything for Salesforce",
+          "description": "All-in-one app to send SMS and WhatsApp messages from Salesforce using pre-built automation, native components, and standard pricing.",
+          "status": "Active"
+        },
+        {
+          "id": 132,
+          "name": "Text Anything for Salesforce + Twilio",
+          "description": "Version of the Salesforce app allowing businesses to use their own Twilio number, infrastructure, and billing while accessing all messaging features.",
+          "status": "Active"
+        }
+      ]
+    }
+  ]
+}
+
+  
