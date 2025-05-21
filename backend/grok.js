@@ -7,10 +7,39 @@ import {
   SystemMessage,
 } from 'langchain/schema';
 import { parse } from 'csv-parse/sync';
-
+import {getDatasetById } from './controllers/datasets.js';
+import dotenv from 'dotenv';
+dotenv.config();
 
 // Global conversation history
 const conversationHistory = [];
+const extractContentFromDataset = (dataset) => {
+  const lines = [];
+
+  const traverse = (node, depth = 0) => {
+    const indent = '  '.repeat(depth);
+    lines.push(`${indent}📁 Name: ${node.name}`);
+    lines.push(`${indent}📄 Description: ${node.description}`);
+    lines.push(`${indent}📌 Status: ${node.status}`);
+
+    if (node.roles && Array.isArray(node.roles)) {
+      node.roles.forEach((role, i) => {
+        lines.push(`${indent}🔹 Role #${i + 1}: ${role.description || ''}`);
+        if (role.instruction?.content) {
+          lines.push(`${indent}📝 Instruction:\n${indent}${role.instruction.content}`);
+        }
+      });
+    }
+
+    // Traverse children recursively
+    if (node.children && Array.isArray(node.children)) {
+      node.children.forEach((child) => traverse(child, depth + 1));
+    }
+  };
+
+  traverse(dataset);
+  return lines.join('\n\n');
+};
 
 // Load and format content from txt, json, or csv
 const loadFileContent = (filePath) => {
@@ -31,14 +60,19 @@ const loadFileContent = (filePath) => {
   }
 };
 
-export const grokChat = async (userInput,filePath = './data.txt') => {
+export const grokChat = async (userInput,datasetId) => {
     const apiKey = process.env.GROK_API_KEY;
   if (!apiKey) {
     throw new Error('API key not found. Please set API_KEY');
   }
-
-  const fileContent = loadFileContent(filePath);
-
+  //console.log(datasetId);
+  
+  const dataset = await getDatasetById(datasetId);
+  if (!dataset) {
+    throw new Error('Dataset not found in DynamoDB');
+  }
+  const fileContent = extractContentFromDataset(dataset);
+  //console.log(fileContent);
   // Only inject the system prompt once at the start
   if (conversationHistory.length === 0) {
     conversationHistory.push(

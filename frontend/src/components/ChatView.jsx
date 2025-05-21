@@ -9,9 +9,10 @@ import { dalle } from '../utils/dalle';
 import Modal from './Modal';
 import Setting from './Setting';
 import { Dropdown, DropdownButton } from 'react-bootstrap';
+import axios from 'axios';
 
 const API_BASE_URL = import.meta.env.VITE_BACKEND_URL;
-
+const API_URL = "http://localhost:5001/api/datasets";
 
 const options = ['ABC-service-bot','ChatGPT', 'DALL·E'];
 const gptModels = ['gpt-3.5-turbo', 'gpt-4', 'deepseek', 'grok', 'llama-3-70b'];
@@ -48,8 +49,20 @@ const ChatView = () => {
   const [messages, addMessage] = useContext(ChatContext);
   const [modalOpen, setModalOpen] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [datasets,setDatasets] = useState([]);
 
 
+  useEffect(() => {
+    const fetchDatasets = async () => {
+      try {
+        const response = await axios.get(API_URL);
+        setDatasets(response.data);
+      } catch (err) {
+        console.error("Error fetching datasets", err);
+      }
+    };
+    fetchDatasets();
+  }, []);
   /**
    * Scrolls the chat area to the bottom.
    */
@@ -126,6 +139,7 @@ const ChatView = () => {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             prompt: cleanPrompt,
+            dataset:selected
           })
         });
         const data = await LLMresponse.json();
@@ -244,15 +258,19 @@ const ChatView = () => {
         className="flex flex-col px-10 mb-2 md:px-32 join sm:flex-row"
         onSubmit={sendMessage}
       >
-        <select
-          value={selected}
-          onChange={(e) => setSelected(e.target.value)}
-          className="w-full sm:w-40 select select-bordered join-item"
-        >
-          <option>{options[0]}</option>
-          <option>{options[1]}</option>
-          <option>{options[2]}</option>
-        </select>
+<select
+  value={selected}
+  onChange={(e) => setSelected(e.target.value)}
+  className="w-full sm:w-40 select select-bordered join-item"
+>
+  <option value="">Select Dataset</option>
+  {datasets.map((dataset) => (
+    <option key={dataset.id} value={dataset.id}>
+      {dataset.name}
+    </option>
+  ))}
+</select>
+
         <div className="flex items-stretch justify-between w-full">
           <textarea
             ref={inputRef}

@@ -4,10 +4,12 @@ import {
     getAllDatasets,
     createDataset,
     updateDataset,
-    deleteDataset
+    deleteDataset,
+    getDatasetById
   } from '../controllers/datasets.js';
 
 router.get('/', getAllDatasets);
+router.get('/:id', getDatasetById);
 router.post('/', createDataset);
 router.put('/:id', updateDataset);
 router.delete('/:id', deleteDataset);

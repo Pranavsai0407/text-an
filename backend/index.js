@@ -50,10 +50,12 @@ app.post('/ask1', async (req, res) => {
 // 🔮 Ask using grok
 app.post('/ask2', async (req, res) => {
   try {
-    const { prompt } = req.body;
+
+    const { prompt, dataset } = req.body;
+    //console.log(req.body);
     if (!prompt) return res.status(400).json({ error: 'Missing required fields' });
 
-    const answer = await grokChat(prompt);
+    const answer = await grokChat(prompt,dataset);
     res.status(200).json({ response: answer });
   } catch (error) {
     console.error('Error:', error.message);

@@ -24,6 +24,16 @@ export const getAllDatasets = async (req, res) => {
   }
 };
 
+export const getDatasetById = async (id) => {
+  const params = {
+    TableName: TABLE_NAME,
+    Key: { id },
+  };
+
+  const result = await docClient.get(params).promise();
+  return result.Item;
+};
+
 export const createDataset = async (req, res) => {
 
   try {
