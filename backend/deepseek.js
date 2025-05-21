@@ -32,7 +32,7 @@ const loadFileContent = (filePath) => {
 };
 
 export const deepseekChat = async (userInput,filePath = './data.txt') => {
-    const apiKey = "sk-bc8bb1c97f6c4fa98a4a22451cf34663";
+    const apiKey = process.env.DEEPSEEK_API_KEY;
   if (!apiKey) {
     throw new Error('DeepSeek API key not found. Please set DEEPSEEK_API_KEY');
   }

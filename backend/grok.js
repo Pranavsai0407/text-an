@@ -32,7 +32,7 @@ const loadFileContent = (filePath) => {
 };
 
 export const grokChat = async (userInput,filePath = './data.txt') => {
-    const apiKey = "xai-74PF0IPegcKKCpJHCUSxAcqGO38v12NCbxnm1bUZ38Tn5szjq5q8WSAwUGctF7eFVTchebnjmFs440fR";
+    const apiKey = process.env.GROK_API_KEY;
   if (!apiKey) {
     throw new Error('API key not found. Please set API_KEY');
   }
