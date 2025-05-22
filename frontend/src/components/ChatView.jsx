@@ -1,47 +1,85 @@
 import { useState, useRef, useEffect, useContext } from 'react';
-import Message from './Message';
-import { ChatContext } from '../context/chatContext';
-import Thinking from './Thinking';
 import { MdSend } from 'react-icons/md';
+import axios from 'axios';
 import { replaceProfanities } from 'no-profanity';
-import { davinci } from '../utils/davinci';
-import { dalle } from '../utils/dalle';
+import { v4 as uuidv4 } from 'uuid';
+
+import Message from './Message';
+import Thinking from './Thinking';
 import Modal from './Modal';
 import Setting from './Setting';
-import { Dropdown, DropdownButton } from 'react-bootstrap';
-import axios from 'axios';
+
+import { ChatContext } from '../context/chatContext';
+import { davinci } from '../utils/davinci';
+import { dalle } from '../utils/dalle';
 
 const API_BASE_URL = import.meta.env.VITE_BACKEND_URL;
-const API_URL = "http://localhost:5001/api/datasets";
+const API_URL = 'http://localhost:5001/api/datasets';
 
-const options = ['ABC-service-bot','ChatGPT', 'DALL·E'];
+const options = ['ABC-service-bot', 'ChatGPT', 'DALL·E'];
 const gptModels = ['gpt-3.5-turbo', 'gpt-4', 'deepseek', 'grok', 'llama-3-70b'];
 
-const template = [
-  {
-    title: 'Plan my food diet',
-    prompt: 'I want to plan a perfect healthy diet.',
-  },
-  {
-    title: 'Help me to cook Masala Dosa',
-    prompt: 'How to cook Masala Dosa',
-  },
-  {
-    title: 'Help in studying Data structures and Algorithms',
-    prompt: 'Give me a detailed roadmap of studying Data structures and algorithms',
-  },
-  {
-    title: 'What is Dynamic programming?',
-    prompt: 'What is Dynamic programming? Explain with examples.',
-  },
-];
 
-/**
- * A chat view component that displays a list of messages and a form for sending new messages.
- */
+const getOrCreateChatId = (selected) => {
+  let chatId = localStorage.getItem('chatId');
+  if (!chatId) {
+    chatId = `uuid-${selected.toLowerCase()}-${Math.floor(Math.random() * 100000)}`;
+    localStorage.setItem('chatId', chatId);
+  }
+  return chatId;
+};
+
+const saveMessage = async (msg, selected) => {
+  let chatId = getOrCreateChatId(selected);
+
+  const newMessage = {
+    content: msg.text,
+    role: msg.ai ? 'assistant' : 'user',
+    timestamp: new Date().toISOString(),
+  };
+
+  try {
+    // Try fetching existing conversation
+    const { data: existingData } = await axios.get(`${API_BASE_URL}/api/conversation/${chatId}`);
+    const existingMessages = existingData?.messages || [];
+
+    const updatedPayload = {
+      chatId,
+      messages: [...existingMessages, newMessage],
+      status: 'pending',
+      timestamp: new Date().toISOString(),
+    };
+
+    await axios.post(`${API_BASE_URL}/api/conversation`, updatedPayload);
+
+  } catch (err) {
+    console.warn(`Fetch failed for chatId "${chatId}". Creating a new chat...`, err);
+
+    // Create a new chatId if fetch fails (e.g., 404)
+    chatId = `uuid-${selected.toLowerCase()}-${Math.floor(Math.random() * 100000)}`;
+    localStorage.setItem('chatId', chatId);
+
+    const newPayload = {
+      chatId,
+      messages: [newMessage],
+      status: 'pending',
+      timestamp: new Date().toISOString(),
+    };
+
+    try {
+      await axios.post(`${API_BASE_URL}/api/conversation`, newPayload);
+    } catch (innerErr) {
+      console.error('Failed to save new conversation:', innerErr);
+    }
+  }
+};
+
+
+
 const ChatView = () => {
   const messagesEndRef = useRef();
   const inputRef = useRef();
+
   const [formValue, setFormValue] = useState('');
   const [thinking, setThinking] = useState(false);
   const [selected, setSelected] = useState(options[0]);
@@ -49,8 +87,7 @@ const ChatView = () => {
   const [messages, addMessage] = useContext(ChatContext);
   const [modalOpen, setModalOpen] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
-  const [datasets,setDatasets] = useState([]);
-
+  const [datasets, setDatasets] = useState([]);
 
   useEffect(() => {
     const fetchDatasets = async () => {
@@ -58,219 +95,176 @@ const ChatView = () => {
         const response = await axios.get(API_URL);
         setDatasets(response.data);
       } catch (err) {
-        console.error("Error fetching datasets", err);
+        console.error('Error fetching datasets', err);
       }
     };
     fetchDatasets();
   }, []);
-  /**
-   * Scrolls the chat area to the bottom.
-   */
+  
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
-  /**
-   * Adds a new message to the chat.
-   *
-   * @param {string} newValue - The text of the new message.
-   * @param {boolean} [ai=false] - Whether the message was sent by an AI or the user.
-   */
-  const updateMessage = (newValue, ai = false, selected) => {
-    const id = Date.now() + Math.floor(Math.random() * 1000000);
+  const updateMessage = async (text, ai = false, selected) => {
     const newMsg = {
-      id: id,
+      id: Date.now() + Math.floor(Math.random() * 1000000),
       createdAt: Date.now(),
-      text: newValue,
-      ai: ai,
-      selected: `${selected}`,
+      text,
+      ai,
+      selected,
     };
-
     addMessage(newMsg);
+    await saveMessage(newMsg, selected);
   };
 
-  /**
-   * Sends our prompt to our API and get response to our request from openai.
-   *
-   * @param {Event} e - The submit event of the form.
-   */
   const sendMessage = async (e) => {
     e.preventDefault();
-  
+
     const key = window.localStorage.getItem('api-key');
     if (!key) {
       setModalOpen(true);
       return;
     }
-  
-    const userMessageLower = formValue.trim().toLowerCase();
-    if (["no", "nope", "nah", "not really","No I'm fine"].includes(userMessageLower)) {
-      updateMessage(formValue, false, selected);
-      updateMessage("Can you please share your contact info so we can follow up with you if needed?", true, selected);
-      setFormValue('');
+
+    const cleanPrompt = replaceProfanities(formValue.trim());
+    if (!cleanPrompt) return;
+
+    const lowerPrompt = cleanPrompt.toLowerCase();
+    const rejectionKeywords = ['no', 'nope', 'nah', 'not really', "no i'm fine"];
+
+    setFormValue('');
+    await updateMessage(cleanPrompt, false, selected);
+
+    // Save and close chat if rejection
+    if (rejectionKeywords.includes(lowerPrompt)) {
+      await updateMessage("Can you please share your contact info so we can follow up with you if needed?", true, selected);
       return;
     }
-  
-    const cleanPrompt = replaceProfanities(formValue);
-    const newMsg = cleanPrompt;
-    const aiModel = selected;
-    const gptVersion = gpt;
-  
+
     setThinking(true);
-    setFormValue('');
-    updateMessage(newMsg, false, aiModel);
-  
+
     try {
-     
-      if(gptVersion=="deepseek"){
-        const LLMresponse = await fetch(`${API_BASE_URL}/ask1`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            prompt: cleanPrompt,
-          })
+      let responseText = '';
+
+      if (gpt === 'deepseek') {
+        const res = await fetch(`${API_BASE_URL}/ask1`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ prompt: cleanPrompt }),
         });
-        const data = await LLMresponse.json();
-        data?.response && updateMessage(`${data.response}\n\nIs there anything else you want me to do?`, true, aiModel);
-      }
-      else if(gptVersion=="grok"){
-        const LLMresponse = await fetch(`${API_BASE_URL}/ask2`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            prompt: cleanPrompt,
-            dataset:selected
-          })
+        const data = await res.json();
+        responseText = data?.response;
+      } else if (gpt === 'grok') {
+        const res = await fetch(`${API_BASE_URL}/ask2`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ prompt: cleanPrompt, dataset: selected }),
         });
-        const data = await LLMresponse.json();
-        data?.response && updateMessage(`${data.response}\n\nIs there anything else you want me to do?`, true, aiModel);
-      }
-      else if (aiModel === options[0]) {
-        const LLMresponse = await fetch(`${API_BASE_URL}/ask`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            prompt: cleanPrompt,
-            key: key,
-            gptVersion: gptVersion
-          })
+        const data = await res.json();
+        responseText = data?.response;
+      } else if (selected === options[0]) {
+        const res = await fetch(`${API_BASE_URL}/ask`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ prompt: cleanPrompt, key, gptVersion: gpt }),
         });
-        const data = await LLMresponse.json();
-        data?.response && updateMessage(`${data.response}\n\nIs there anything else you want me to do?`, true, aiModel);
-      } 
-      else if (aiModel === options[1]) {
-        const LLMresponse = await davinci(cleanPrompt, key, gptVersion);
-        LLMresponse && updateMessage(LLMresponse, true, aiModel);
+        const data = await res.json();
+        responseText = data?.response;
+      } else if (selected === options[1]) {
+        responseText = await davinci(cleanPrompt, key, gpt);
+      } else {
+        const imageResponse = await dalle(cleanPrompt, key);
+        const imageUrl = imageResponse.data.data[0].url;
+        await updateMessage(imageUrl, true, selected);
+        setThinking(false);
+        return;
       }
-      else {
-        const response = await dalle(cleanPrompt, key);
-        const data = response.data.data[0].url;
-        data && updateMessage(data, true, aiModel);
+
+      if (responseText) {
+        await updateMessage(`${responseText}\n\nIs there anything else you want me to do?`, true, selected);
       }
     } catch (err) {
-      window.alert(`Error: ${err} please try again later`);
+      alert(`Error: ${err.message || err} - please try again later.`);
     }
-  
+
     setThinking(false);
   };
-  
+
   const handleKeyDown = (e) => {
-    if (e.key === 'Enter') {
-      // 👇 Get input value
-      sendMessage(e);
-    }
+    if (e.key === 'Enter') sendMessage(e);
   };
 
-  /**
-   * Scrolls the chat area to the bottom when the messages array is updated.
-   */
-  useEffect(() => {
-    scrollToBottom();
-  }, [messages, thinking]);
+  useEffect(() => scrollToBottom(), [messages, thinking]);
 
   useEffect(() => {
     const handleClickOutside = (e) => {
-      if (!e.target.closest('.relative')) {
-        setDropdownOpen(false);
-      }
+      if (!e.target.closest('.relative')) setDropdownOpen(false);
     };
     document.addEventListener('click', handleClickOutside);
     return () => document.removeEventListener('click', handleClickOutside);
   }, []);
-  
 
-  /**
-   * Focuses the TextArea input to when the component is first rendered.
-   */
-  useEffect(() => {
-    inputRef.current.focus();
-  }, []);
+  useEffect(() => inputRef.current.focus(), []);
 
   return (
     <main className="relative flex flex-col h-screen p-1 overflow-hidden bg-[#272629]">
+      {/* Model Dropdown */}
       <div className="relative flex justify-center my-4">
-  <div className="relative w-64">
-    <button
-      className="w-full px-4 py-2 text-white bg-gray-700 rounded-lg shadow-md hover:bg-gray-600"
-      onClick={() => setDropdownOpen(prev => !prev)}
-    >
-      {`Model: ${gpt}`}
-    </button>
-    {dropdownOpen && (
-      <ul className="absolute z-10 w-full mt-2 bg-[#2c2c2c] border border-gray-600 rounded-md shadow-lg">
-        {gptModels.map((model) => (
-          <li
-            key={model}
-            className={`px-4 py-2 text-gray-200 hover:bg-[#3a3a3a] cursor-pointer ${
-              gpt === model ? 'bg-[#444] font-semibold' : ''
-            }`}
-            onClick={() => {
-              setGpt(model);
-              setDropdownOpen(false);
-            }}
+        <div className="relative w-64">
+          <button
+            className="w-full px-4 py-2 text-white bg-gray-700 rounded-lg shadow-md hover:bg-gray-600"
+            onClick={() => setDropdownOpen((prev) => !prev)}
           >
-            {model}
-          </li>
-        ))}
-      </ul>
-    )}
-  </div>
-</div>
+            {`Model: ${gpt}`}
+          </button>
+          {dropdownOpen && (
+            <ul className="absolute z-10 w-full mt-2 bg-[#2c2c2c] border border-gray-600 rounded-md shadow-lg">
+              {gptModels.map((model) => (
+                <li
+                  key={model}
+                  className={`px-4 py-2 text-gray-200 hover:bg-[#3a3a3a] cursor-pointer ${
+                    gpt === model ? 'bg-[#444] font-semibold' : ''
+                  }`}
+                  onClick={() => {
+                    setGpt(model);
+                    setDropdownOpen(false);
+                  }}
+                >
+                  {model}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      </div>
 
-
-
+      {/* Messages */}
       <section className="flex flex-col flex-grow w-full px-4 overflow-y-scroll sm:px-10 md:px-32">
         {messages.length ? (
-          messages.map((message, index) => (
-            <Message key={index} message={{ ...message }} />
-          ))
+          messages.map((message, index) => <Message key={index} message={message} />)
         ) : (
           <div className="flex justify-center my-2">
-            <div className="w-screen overflow-hidden font-bold text-3xl text-center">Hi! How can I Help you?</div>
+            <div className="w-screen font-bold text-3xl text-center">Hi! How can I help you?</div>
           </div>
         )}
-
         {thinking && <Thinking />}
-
         <span ref={messagesEndRef}></span>
       </section>
-      <form
-        className="flex flex-col px-10 mb-2 md:px-32 join sm:flex-row"
-        onSubmit={sendMessage}
-      >
-<select
-  value={selected}
-  onChange={(e) => setSelected(e.target.value)}
-  className="w-full sm:w-40 select select-bordered join-item"
->
-  <option value="">Select Dataset</option>
-  {datasets.map((dataset) => (
-    <option key={dataset.id} value={dataset.id}>
-      {dataset.name}
-    </option>
-  ))}
-</select>
 
+      {/* Input Form */}
+      <form className="flex flex-col px-10 mb-2 md:px-32 join sm:flex-row" onSubmit={sendMessage}>
+        <select
+          value={selected}
+          onChange={(e) => setSelected(e.target.value)}
+          className="w-full sm:w-40 select select-bordered join-item"
+        >
+          <option value="">Select Dataset</option>
+          {datasets.map((dataset) => (
+            <option key={dataset.id} value={dataset.id}>
+              {dataset.name}
+            </option>
+          ))}
+        </select>
         <div className="flex items-stretch justify-between w-full">
           <textarea
             ref={inputRef}
@@ -279,11 +273,13 @@ const ChatView = () => {
             onKeyDown={handleKeyDown}
             onChange={(e) => setFormValue(e.target.value)}
           />
-          <button type="submit" className="join-item btn" disabled={!formValue}>
+          <button type="submit" className="join-item btn" disabled={!formValue.trim()}>
             <MdSend size={30} />
           </button>
         </div>
       </form>
+
+      {/* API Key Modal */}
       <Modal title="Setting" modalOpen={modalOpen} setModalOpen={setModalOpen}>
         <Setting modalOpen={modalOpen} setModalOpen={setModalOpen} />
       </Modal>
