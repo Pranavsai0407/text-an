@@ -124,10 +124,10 @@ const ChatView = () => {
     e.preventDefault();
 
     const key = window.localStorage.getItem('api-key');
-    if (!key) {
+    /*if (!key) {
       setModalOpen(true);
       return;
-    }
+    }*/
 
     const cleanPrompt = replaceProfanities(formValue.trim());
     if (!cleanPrompt) return;

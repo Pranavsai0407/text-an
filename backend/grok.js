@@ -73,6 +73,7 @@ export const grokChat = async (userInput,datasetId) => {
   }
   const fileContent = extractContentFromDataset(dataset);
   //console.log(fileContent);
+  //console.log(fileContent);
   // Only inject the system prompt once at the start
   if (conversationHistory.length === 0) {
     conversationHistory.push(
