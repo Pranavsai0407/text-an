@@ -4,7 +4,10 @@ import { useNavigate } from "react-router-dom";
 import { useEffect } from "react";
 import axios from "axios";
 
-const API_URL = "http://localhost:5001/api/roles";
+//const API_URL = "http://localhost:5001/api/roles";
+//const API_URL = "http://localhost:5001/api/roles";
+const API_BASE_URL = import.meta.env.VITE_BACKEND_URL;
+
 
 export const initialRoles = [
   {
@@ -82,7 +85,7 @@ const ViewRoles = () => {
   useEffect(() => {
       const fetchRoles = async () => {
         try {
-          const response = await axios.get(API_URL);
+          const response = await axios.get(`${API_BASE_URL}/api/roles`);
           setRoles(response.data);
         } catch (err) {
           console.error("Error fetching roles", err);
@@ -93,7 +96,7 @@ const ViewRoles = () => {
     const handleAddRole = async () => {
         try {
           if (isEditMode) {
-            await axios.put(`${API_URL}/${editId}`, {
+            await axios.put(`${API_BASE_URL}/api/roles/${editId}`, {
               ...newRole,
             });
             setRoles((prev) =>
@@ -108,7 +111,7 @@ const ViewRoles = () => {
               ...newRole,
             };
             //console.log(newEntry);
-            await axios.post(API_URL, newEntry);
+            await axios.post(`${API_BASE_URL}/api/roles`, newEntry);
             setRoles((prev) => [...prev, newEntry]);
           }
     
@@ -125,7 +128,7 @@ const ViewRoles = () => {
 
       const handleDeleteRole = async (idToDelete) => {
         try {
-          await axios.delete(`${API_URL}/${idToDelete}`);
+          await axios.delete(`${API_BASE_URL}/api/roles/${idToDelete}`);
           setRoles((prev) => prev.filter((d) => d.id !== idToDelete));
         } catch (err) {
           console.error("Error deleting dataset", err);

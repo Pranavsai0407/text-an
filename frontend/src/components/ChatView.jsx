@@ -3,6 +3,8 @@ import { MdSend } from 'react-icons/md';
 import axios from 'axios';
 import { replaceProfanities } from 'no-profanity';
 import { v4 as uuidv4 } from 'uuid';
+import Cookies from 'js-cookie';
+
 
 import Message from './Message';
 import Thinking from './Thinking';
@@ -14,18 +16,18 @@ import { davinci } from '../utils/davinci';
 import { dalle } from '../utils/dalle';
 
 const API_BASE_URL = import.meta.env.VITE_BACKEND_URL;
-const API_URL = 'http://localhost:5001/api/datasets';
 
 const options = ['ABC-service-bot', 'ChatGPT', 'DALL·E'];
 const gptModels = ['gpt-3.5-turbo', 'gpt-4', 'deepseek', 'grok', 'llama-3-70b'];
 
-
 const getOrCreateChatId = (selected) => {
-  let chatId = localStorage.getItem('chatId');
+  let chatId = Cookies.get('chatId');
+
   if (!chatId) {
     chatId = `uuid-${selected.toLowerCase()}-${Math.floor(Math.random() * 100000)}`;
-    localStorage.setItem('chatId', chatId);
+    Cookies.set('chatId', chatId, { expires: 1 / 12 }); // 2 hours
   }
+
   return chatId;
 };
 
@@ -39,12 +41,12 @@ const saveMessage = async (msg, selected) => {
   };
 
   try {
-    // Try fetching existing conversation
     const { data: existingData } = await axios.get(`${API_BASE_URL}/api/conversation/${chatId}`);
     const existingMessages = existingData?.messages || [];
 
     const updatedPayload = {
       chatId,
+      adminId: selected,
       messages: [...existingMessages, newMessage],
       status: 'pending',
       timestamp: new Date().toISOString(),
@@ -55,12 +57,13 @@ const saveMessage = async (msg, selected) => {
   } catch (err) {
     console.warn(`Fetch failed for chatId "${chatId}". Creating a new chat...`, err);
 
-    // Create a new chatId if fetch fails (e.g., 404)
     chatId = `uuid-${selected.toLowerCase()}-${Math.floor(Math.random() * 100000)}`;
-    localStorage.setItem('chatId', chatId);
+    Cookies.set('chatId', chatId, { expires: 1 / 12 });
+
 
     const newPayload = {
       chatId,
+      adminId: selected,
       messages: [newMessage],
       status: 'pending',
       timestamp: new Date().toISOString(),
@@ -74,15 +77,14 @@ const saveMessage = async (msg, selected) => {
   }
 };
 
-
-
 const ChatView = () => {
   const messagesEndRef = useRef();
   const inputRef = useRef();
 
   const [formValue, setFormValue] = useState('');
   const [thinking, setThinking] = useState(false);
-  const [selected, setSelected] = useState(options[0]);
+  const [selected, setSelected] = useState('');
+  const [selectedDataset, setSelectedDataset] = useState(null);
   const [gpt, setGpt] = useState(gptModels[0]);
   const [messages, addMessage] = useContext(ChatContext);
   const [modalOpen, setModalOpen] = useState(false);
@@ -92,7 +94,7 @@ const ChatView = () => {
   useEffect(() => {
     const fetchDatasets = async () => {
       try {
-        const response = await axios.get(API_URL);
+        const response = await axios.get(`${API_BASE_URL}/api/datasets`);
         setDatasets(response.data);
       } catch (err) {
         console.error('Error fetching datasets', err);
@@ -100,7 +102,7 @@ const ChatView = () => {
     };
     fetchDatasets();
   }, []);
-  
+
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
@@ -113,6 +115,7 @@ const ChatView = () => {
       ai,
       selected,
     };
+    setThinking(false);
     addMessage(newMsg);
     await saveMessage(newMsg, selected);
   };
@@ -135,7 +138,6 @@ const ChatView = () => {
     setFormValue('');
     await updateMessage(cleanPrompt, false, selected);
 
-    // Save and close chat if rejection
     if (rejectionKeywords.includes(lowerPrompt)) {
       await updateMessage("Can you please share your contact info so we can follow up with you if needed?", true, selected);
       return;
@@ -185,9 +187,8 @@ const ChatView = () => {
       }
     } catch (err) {
       alert(`Error: ${err.message || err} - please try again later.`);
+      setThinking(false);
     }
-
-    setThinking(false);
   };
 
   const handleKeyDown = (e) => {
@@ -206,9 +207,36 @@ const ChatView = () => {
 
   useEffect(() => inputRef.current.focus(), []);
 
+  // Auto send intro message when dataset is selected
+  useEffect(() => {
+    const sendIntroMessage = async () => {
+      if (selectedDataset?.roles?.length > 0) {
+        const roleNames = selectedDataset.roles
+          .map((role) => role.name)
+          .filter(Boolean);
+  
+        let roleText = '';
+        if (roleNames.length === 1) {
+          roleText = roleNames[0];
+        } else if (roleNames.length === 2) {
+          roleText = `${roleNames[0]} and ${roleNames[1]}`;
+        } else {
+          roleText = `${roleNames.slice(0, -1).join(', ')}, and ${roleNames.slice(-1)}`;
+        }
+  
+        const introText = `Hello! I am your ${roleText} from ${selectedDataset.name}. How can I assist you today?`;
+        await updateMessage(introText, true, selectedDataset.id);
+      }
+    };
+  
+    if (selectedDataset) {
+      sendIntroMessage();
+    }
+  }, [selectedDataset]);
+  
+  
   return (
     <main className="relative flex flex-col h-screen p-1 overflow-hidden bg-[#272629]">
-      {/* Model Dropdown */}
       <div className="relative flex justify-center my-4">
         <div className="relative w-64">
           <button
@@ -222,9 +250,7 @@ const ChatView = () => {
               {gptModels.map((model) => (
                 <li
                   key={model}
-                  className={`px-4 py-2 text-gray-200 hover:bg-[#3a3a3a] cursor-pointer ${
-                    gpt === model ? 'bg-[#444] font-semibold' : ''
-                  }`}
+                  className={`px-4 py-2 text-gray-200 hover:bg-[#3a3a3a] cursor-pointer ${gpt === model ? 'bg-[#444] font-semibold' : ''}`}
                   onClick={() => {
                     setGpt(model);
                     setDropdownOpen(false);
@@ -238,7 +264,6 @@ const ChatView = () => {
         </div>
       </div>
 
-      {/* Messages */}
       <section className="flex flex-col flex-grow w-full px-4 overflow-y-scroll sm:px-10 md:px-32">
         {messages.length ? (
           messages.map((message, index) => <Message key={index} message={message} />)
@@ -251,11 +276,15 @@ const ChatView = () => {
         <span ref={messagesEndRef}></span>
       </section>
 
-      {/* Input Form */}
       <form className="flex flex-col px-10 mb-2 md:px-32 join sm:flex-row" onSubmit={sendMessage}>
         <select
           value={selected}
-          onChange={(e) => setSelected(e.target.value)}
+          onChange={(e) => {
+            const datasetId = e.target.value;
+            setSelected(datasetId);
+            const ds = datasets.find((d) => d.id === datasetId);
+            setSelectedDataset(ds);
+          }}
           className="w-full sm:w-40 select select-bordered join-item"
         >
           <option value="">Select Dataset</option>
@@ -279,7 +308,6 @@ const ChatView = () => {
         </div>
       </form>
 
-      {/* API Key Modal */}
       <Modal title="Setting" modalOpen={modalOpen} setModalOpen={setModalOpen}>
         <Setting modalOpen={modalOpen} setModalOpen={setModalOpen} />
       </Modal>

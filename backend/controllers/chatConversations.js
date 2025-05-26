@@ -9,7 +9,7 @@ AWS.config.update({
 const docClient = new AWS.DynamoDB.DocumentClient();
 
 export const saveConversation = async (req, res) => {
-  const { chatId, messages, status, timestamp } = req.body;
+  const { chatId,adminId, messages, status, timestamp } = req.body;
 
   const dynamoFormatMessages = messages.map(msg => ({
     M: {
@@ -22,6 +22,7 @@ export const saveConversation = async (req, res) => {
     TableName: "ChatConversations",
     Item: {
       chatId: { S: chatId },
+      adminId: {S : adminId},
       messages: { L: dynamoFormatMessages },
       status: { S: status },
       timestamp: { S: timestamp }
@@ -62,6 +63,7 @@ export const getConversation = async (req, res) => {
   
       const conversation = {
         chatId: result.Item.chatId.S,
+        adminId: result.Item.adminId.S,
         messages,
         status: result.Item.status.S,
         timestamp: result.Item.timestamp.S,

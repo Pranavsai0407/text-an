@@ -3,6 +3,8 @@ import { useParams } from "react-router-dom";
 import axios from "axios";
 import RecursiveDataset from "./RecursiveDataset";
 
+const API_BASE_URL = import.meta.env.VITE_BACKEND_URL;
+
 const ViewDataset = () => {
   const { _id } = useParams();
   const [dataset, setDataset] = useState(null);
@@ -12,7 +14,7 @@ const ViewDataset = () => {
   useEffect(() => {
     const fetchDataset = async () => {
       try {
-        const res = await axios.get(`http://localhost:5001/api/datasets`);
+        const res = await axios.get(`${API_BASE_URL}/api/datasets`);
         const found = res.data.find((item) => item.id.toString() === _id);
         setDataset(found || null);
         setLoading(false);
@@ -27,7 +29,7 @@ const ViewDataset = () => {
 
   const updateDataset = async (updatedData) => {
     try {
-      await axios.put(`http://localhost:5001/api/datasets/${updatedData.id}`, updatedData);
+      await axios.put(`${API_BASE_URL}/api/datasets/${updatedData.id}`, updatedData);
       setDataset(updatedData); // locally update after successful save
     } catch (error) {
       console.error("Error updating dataset:", error);
@@ -36,7 +38,7 @@ const ViewDataset = () => {
 
   const deleteDataset = async (targetId) => {
     try {
-      await axios.delete(`http://localhost:5001/api/datasets/${targetId}`);
+      await axios.delete(`${API_BASE_URL}/api/datasets/${targetId}`);
     } catch (error) {
       console.error("Error deleting dataset:", error);
     }

@@ -5,7 +5,8 @@ import axios from "axios";
 
 import { initialRoles } from "./ViewRoles";
 
-const API_URL = "http://localhost:5001/api/datasets";
+//const API_URL = "http://localhost:5001/api/datasets";
+const API_BASE_URL = import.meta.env.VITE_BACKEND_URL;
 
 const statusColor = {
   Active: "badge-success",
@@ -96,7 +97,7 @@ const AdminPage = () => {
   useEffect(() => {
     const fetchRoles = async () => {
       try {
-        const response = await axios.get('http://localhost:5001/api/roles');
+        const response = await axios.get(`${API_BASE_URL}/api/roles`);
         setRoles(response.data);
       } catch (err) {
         console.error("Error fetching roles", err);
@@ -108,7 +109,7 @@ const AdminPage = () => {
   useEffect(() => {
     const fetchDatasets = async () => {
       try {
-        const response = await axios.get(API_URL);
+        const response = await axios.get(`${API_BASE_URL}/api/datasets`);
         setDatasets(response.data);
       } catch (err) {
         console.error("Error fetching datasets", err);
@@ -121,7 +122,7 @@ const AdminPage = () => {
     try {
       if (isEditMode) {
         
-        await axios.put(`${API_URL}/${editId}`, {
+        await axios.put(`${API_BASE_URL}/api/datasets/${editId}`, {
           ...newDataset,
         });
         setDatasets((prev) =>
@@ -137,7 +138,7 @@ const AdminPage = () => {
           children: [],
         };
         //console.log(newEntry);
-        await axios.post(API_URL, newEntry);
+        await axios.post(`${API_BASE_URL}/api/datasets`, newEntry);
         setDatasets((prev) => [...prev, newEntry]);
       }
 
@@ -152,7 +153,7 @@ const AdminPage = () => {
 
   const handleDeleteDataset = async (idToDelete) => {
     try {
-      await axios.delete(`${API_URL}/${idToDelete}`);
+      await axios.delete(`${API_BASE_URL}/api/datasets/${idToDelete}`);
       setDatasets((prev) => prev.filter((d) => d.id !== idToDelete));
     } catch (err) {
       console.error("Error deleting dataset", err);
@@ -189,6 +190,9 @@ const AdminPage = () => {
               }}
             >
               <Plus className="w-5 h-5 mr-2" /> Add Dataset
+            </button>
+            <button className="btn btn-success text-white mr-4 ml-4 font-medium" onClick={() => window.open("http://textanythingadminn.s3-website.eu-north-1.amazonaws.com/", "_blank")}>
+              Add credentials
             </button>
           </div>
         </div>
