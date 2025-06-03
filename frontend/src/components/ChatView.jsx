@@ -4,6 +4,8 @@ import axios from 'axios';
 import { replaceProfanities } from 'no-profanity';
 import { v4 as uuidv4 } from 'uuid';
 import Cookies from 'js-cookie';
+import { useLocation , useNavigate} from 'react-router-dom'; // ⬅️ Add this line at the top
+import botImage from '../assets/bot.gif';
 
 
 import Message from './Message';
@@ -18,7 +20,7 @@ import { dalle } from '../utils/dalle';
 const API_BASE_URL = import.meta.env.VITE_BACKEND_URL;
 
 const options = ['ABC-service-bot', 'ChatGPT', 'DALL·E'];
-const gptModels = ['gpt-3.5-turbo', 'gpt-4', 'deepseek', 'grok', 'llama-3-70b'];
+const gptModels = ['gpt-3.5-turbo', 'gpt-4', 'deepseek', 'grok', 'llama-3-70b', 'grok_RAG'];
 
 const getOrCreateChatId = (selected) => {
   let chatId = Cookies.get('chatId');
@@ -80,6 +82,7 @@ const saveMessage = async (msg, selected) => {
 const ChatView = () => {
   const messagesEndRef = useRef();
   const inputRef = useRef();
+  const navigate = useNavigate(); 
 
   const [formValue, setFormValue] = useState('');
   const [thinking, setThinking] = useState(false);
@@ -90,6 +93,13 @@ const ChatView = () => {
   const [modalOpen, setModalOpen] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [datasets, setDatasets] = useState([]);
+  const [showImprovePanel, setShowImprovePanel] = useState(false);
+  const [queryText, setQueryText] = useState('');
+  const [modelText, setModelText] = useState('');
+  const [improvedText, setImprovedText] = useState('');
+
+
+  const location = useLocation(); // ⬅️ Get route state
 
   useEffect(() => {
     const fetchDatasets = async () => {
@@ -102,6 +112,42 @@ const ChatView = () => {
     };
     fetchDatasets();
   }, []);
+
+  
+
+  useEffect(() => {
+    if (location.state?.checkDataset) {
+      // Show alert only once
+      const timer = setTimeout(() => {
+        alert('Please select the data set!');
+        // Reset the state to prevent re-trigger on reload
+        navigate('.', { replace: true, state: {} });
+      }, 200);
+
+      return () => clearTimeout(timer);
+    }
+  }, [location.state, navigate]);
+
+  const handleSubmit = async () => {
+  const payload = {
+    instructionId: uuidv4(), // ✅ generate unique ID
+    bot_reply: modelText,
+    created_at: new Date().toISOString(),
+    instruction_text:improvedText, // ✅ improved response
+    status:"pending" ,
+    user_message: queryText,
+  };
+
+  try {
+    await axios.post(`${API_BASE_URL}/api/instructions`, payload);
+      console.log("Submitted successfully!");
+      setQueryText("");
+      setModelText("");
+      setImprovedText("");
+  } catch (err) {
+    console.error("Error submitting data:", err);
+  }
+};
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -164,7 +210,17 @@ const ChatView = () => {
         });
         const data = await res.json();
         responseText = data?.response;
-      } else if (selected === options[0]) {
+      }
+      else if (gpt === 'grok_RAG') {
+        const res = await fetch(`${API_BASE_URL}/ask3`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ prompt: cleanPrompt, dataset: selected }),
+        });
+        const data = await res.json();
+        responseText = data?.response;
+      } 
+      else if (selected === options[0]) {
         const res = await fetch(`${API_BASE_URL}/ask`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -250,7 +306,9 @@ const ChatView = () => {
               {gptModels.map((model) => (
                 <li
                   key={model}
-                  className={`px-4 py-2 text-gray-200 hover:bg-[#3a3a3a] cursor-pointer ${gpt === model ? 'bg-[#444] font-semibold' : ''}`}
+                  className={`px-4 py-2 text-gray-200 hover:bg-[#3a3a3a] cursor-pointer ${
+                    gpt === model ? "bg-[#444] font-semibold" : ""
+                  }`}
                   onClick={() => {
                     setGpt(model);
                     setDropdownOpen(false);
@@ -266,17 +324,24 @@ const ChatView = () => {
 
       <section className="flex flex-col flex-grow w-full px-4 overflow-y-scroll sm:px-10 md:px-32">
         {messages.length ? (
-          messages.map((message, index) => <Message key={index} message={message} />)
+          messages.map((message, index) => (
+            <Message key={index} message={message} />
+          ))
         ) : (
           <div className="flex justify-center my-2">
-            <div className="w-screen font-bold text-3xl text-center">Hi! How can I help you?</div>
+            <div className="w-screen font-bold text-3xl text-center">
+              Hi! How can I help you?
+            </div>
           </div>
         )}
         {thinking && <Thinking />}
         <span ref={messagesEndRef}></span>
       </section>
 
-      <form className="flex flex-col px-10 mb-2 md:px-32 join sm:flex-row" onSubmit={sendMessage}>
+      <form
+        className="flex flex-col px-10 mb-2 md:px-32 join sm:flex-row"
+        onSubmit={sendMessage}
+      >
         <select
           value={selected}
           onChange={(e) => {
@@ -302,7 +367,11 @@ const ChatView = () => {
             onKeyDown={handleKeyDown}
             onChange={(e) => setFormValue(e.target.value)}
           />
-          <button type="submit" className="join-item btn" disabled={!formValue.trim()}>
+          <button
+            type="submit"
+            className="join-item btn"
+            disabled={!formValue.trim()}
+          >
             <MdSend size={30} />
           </button>
         </div>
@@ -311,6 +380,63 @@ const ChatView = () => {
       <Modal title="Setting" modalOpen={modalOpen} setModalOpen={setModalOpen}>
         <Setting modalOpen={modalOpen} setModalOpen={setModalOpen} />
       </Modal>
+      <div className="fixed bottom-6 right-6 z-50">
+        <img
+          src={botImage} // Image must exist in public/bot-icon.png
+          alt="Bot"
+          className="w-16 h-16 cursor-pointer rounded-full shadow-lg hover:scale-105 transition"
+          onClick={() => setShowImprovePanel((prev) => !prev)}
+        />
+      </div>
+
+      {/* Dark mode panel for response improvement */}
+      {showImprovePanel && (
+        <div className="fixed bottom-28 right-6 z-50 bg-[#1e1e1e] text-white rounded-xl shadow-2xl p-5 w-[22rem] space-y-4 border border-gray-700">
+          <div>
+            <label className="block text-sm font-medium text-gray-300 mb-1">
+              User's Query
+            </label>
+            <textarea
+              rows={3}
+              value={queryText}
+              onChange={(e) => setQueryText(e.target.value)}
+              className="w-full p-3 rounded-lg bg-[#2c2c2c] border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+              placeholder="Enter query..."
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-300 mb-1">
+              Model Response
+            </label>
+            <textarea
+              rows={3}
+              value={modelText}
+              onChange={(e) => setModelText(e.target.value)}
+              className="w-full p-3 rounded-lg bg-[#2c2c2c] border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+              placeholder="Model's response..."
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-300 mb-1">
+              Improved Response
+            </label>
+            <textarea
+              rows={3}
+              value={improvedText}
+              onChange={(e) => setImprovedText(e.target.value)}
+              className="w-full p-3 rounded-lg bg-[#2c2c2c] border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+              placeholder="Write improved version..."
+            />
+          </div>
+
+          <button
+            onClick={handleSubmit}
+            className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-lg transition duration-200"
+          >
+            Submit
+          </button>
+        </div>
+      )}
     </main>
   );
 };

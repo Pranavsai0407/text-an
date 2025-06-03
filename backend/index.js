@@ -7,6 +7,8 @@ import { grokChat } from './grok.js';
 import datasetRoutes from './routes/datasets.js';
 import roleRoutes from './routes/roles.js';
 import coversationRoutes from './routes/chatConversations.js';
+import instructionRoutes from './routes/instructions.js';
+import { grokChat_RAG } from './grok_RAG.js';
 
 const app = express();
 app.use(cors());
@@ -14,6 +16,7 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 import AWS from 'aws-sdk';
+
 
 AWS.config.update({
     accessKeyId: process.env.AWS_ACCESS_KEY_ID,
@@ -26,6 +29,7 @@ const docClient = new AWS.DynamoDB.DocumentClient();
 
 // 🔮 Ask using davinci
 app.use('/api/datasets', datasetRoutes);
+app.use('/api/instructions', instructionRoutes);
 app.use('/api/roles', roleRoutes);
 app.use('/api/conversation',coversationRoutes);
 
@@ -84,6 +88,20 @@ app.post('/ask2', async (req, res) => {
     if (!prompt) return res.status(400).json({ error: 'Missing required fields' });
 
     const answer = await grokChat(prompt,dataset);
+    res.status(200).json({ response: answer });
+  } catch (error) {
+    console.error('Error:', error.message);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+app.post('/ask3', async (req, res) => {
+  try {
+    const { prompt, dataset } = req.body;
+    //console.log(req.body);
+    if (!prompt) return res.status(400).json({ error: 'Missing required fields' });
+
+    const answer = await grokChat_RAG(prompt,dataset);
     res.status(200).json({ response: answer });
   } catch (error) {
     console.error('Error:', error.message);

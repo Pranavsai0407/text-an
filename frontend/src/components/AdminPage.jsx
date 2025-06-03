@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from "react";
-import { Eye, Pencil, Trash2, Plus } from "lucide-react";
+import React, { useEffect, useState,useRef } from "react";
+import { Eye, Pencil, Trash2, Plus ,Maximize2,MoreVertical} from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
 
@@ -14,70 +14,129 @@ const statusColor = {
   Draft: "badge-warning",
 };
 
-export const initialData = [
-  {
-    id: 1,
-    name: "Dataset 1",
-    description: "This is a dataset1.",
-    status: "Active",
-    roles: [initialRoles[0]],
-    children: [
-      {
-        id: 11,
-        name: "Child Dataset 1",
-        description: "This is a child dataset.",
-        status: "Draft",
-        children: [
-          {
-            id: 111,
-            name: "Grandchild Dataset 1",
-            description: "This is a grandchild dataset.",
-            status: "Active",
-          },
-        ],
-      },
-    ],
-  },
-];
+
 
 
 const DatasetCard = ({ data, level = 0, handleDelete, handleEdit }) => {
   const navigate = useNavigate();
+  const [expanded, setExpanded] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef(null);
 
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (menuRef.current && !menuRef.current.contains(event.target)) {
+        setMenuOpen(false);
+      }
+    }
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
   return (
-    <div className={`card bg-base-200 shadow-lg mb-4 w-full max-w-[1000px] mx-auto ml-${level * 4}`}>
+    <div
+      className={`card bg-base-200 shadow-lg mb-4 w-full max-w-[1000px] mx-auto ml-${
+        level * 4
+      }`}
+    >
       <div className="card-body p-6">
         <div className="flex justify-between items-start flex-col sm:flex-row gap-4">
           <div>
-            <h2 className="card-title text-lg sm:text-2xl font-semibold">{data.name}</h2>
-            <p className="text-sm text-gray-400">{data.description}</p>
+            <h2 className="card-title text-lg sm:text-2xl font-semibold">
+              {data.name}
+            </h2>
+            <div className="text-sm text-gray-400 whitespace-pre-wrap">
+              {expanded || data.description.length <= 200
+                ? data.description
+                : `${data.description.slice(0, 200)}... `}
+              {data.description.length > 200 && (
+                <button
+                  className="text-blue-400 ml-1 underline text-xs"
+                  onClick={() => setExpanded(!expanded)}
+                >
+                  {expanded ? "Show less" : "Read more"}
+                </button>
+              )}
+            </div>
+
             <div className="flex gap-2 mt-2 flex-wrap">
-              <span className={`badge ${statusColor[data.status] || "badge-outline"}`}>{data.status}</span>
+              <span
+                className={`badge ${
+                  statusColor[data.status] || "badge-outline"
+                }`}
+              >
+                {data.status}
+              </span>
             </div>
             {data.roles?.length > 0 && (
               <div className="flex flex-wrap gap-2 mt-2">
                 {data.roles.map((role) => (
-                  <span key={role.id} className="badge badge-outline">{role.name}</span>
+                  <span key={role.id} className="badge badge-outline">
+                    {role.name}
+                  </span>
                 ))}
               </div>
             )}
           </div>
-          <div className="flex gap-2 flex-wrap">
-            <button className="btn btn-outline btn-sm" onClick={() => navigate(`/viewDataset/${data.id}`)}>
+          {/*<div className="flex gap-2 flex-wrap">
+            <button
+              className="btn btn-outline btn-sm"
+              onClick={() => navigate(`/viewDataset/${data.id}`)}
+            >
               <Eye className="w-4 h-4 mr-1" /> View
             </button>
-            <button className="btn btn-accent btn-sm text-white" onClick={() => handleEdit(data)}>
+            <button
+              className="btn btn-accent btn-sm text-white"
+              onClick={() => handleEdit(data)}
+            >
               <Pencil className="w-4 h-4 mr-1" /> Edit
             </button>
-            <button className="btn btn-error btn-sm text-white" onClick={() => handleDelete(data.id)}>
+            <button
+              className="btn btn-error btn-sm text-white"
+              onClick={() => handleDelete(data.id)}
+            >
               <Trash2 className="w-4 h-4 mr-1" /> Delete
             </button>
+          </div>*/}
+          {/* Dropdown Menu */}
+          <div className="relative mt-2 sm:mt-0" ref={menuRef}>
+            <button
+              className="btn btn-sm btn-ghost"
+              onClick={() => setMenuOpen(!menuOpen)}
+            >
+              <MoreVertical className="w-5 h-5" />
+            </button>
+            {menuOpen && (
+              <ul className="absolute right-0 mt-2 w-40 menu bg-base-100 rounded-box shadow-lg z-50">
+                <li>
+                  <button onClick={() => navigate(`/viewDataset/${data.id}`)}>
+                    <Eye className="w-4 h-4" />
+                    View
+                  </button>
+                </li>
+                <li>
+                  <button onClick={() => handleEdit(data)}>
+                    <Pencil className="w-4 h-4" />
+                    Edit
+                  </button>
+                </li>
+                <li>
+                  <button onClick={() => handleDelete(data.id)}>
+                    <Trash2 className="w-4 h-4 text-red-500" />
+                    <span className="text-red-500">Delete</span>
+                  </button>
+                </li>
+              </ul>
+            )}
           </div>
         </div>
       </div>
     </div>
   );
 };
+
 
 const AdminPage = () => {
   const navigate = useNavigate();
@@ -87,11 +146,13 @@ const AdminPage = () => {
   const [newDataset, setNewDataset] = useState({
     name: "",
     description: "",
+    converted:"No",
     status: "Draft",
     roles: [],
   });
   const [isEditMode, setIsEditMode] = useState(false);
   const [editId, setEditId] = useState(null);
+  const [expandType, setExpandType] = useState(null);
 
   // Fetch datasets on mount
   useEffect(() => {
@@ -121,7 +182,7 @@ const AdminPage = () => {
   const handleAddDataset = async () => {
     try {
       if (isEditMode) {
-        
+        //console.log(newDataset);
         await axios.put(`${API_BASE_URL}/api/datasets/${editId}`, {
           ...newDataset,
         });
@@ -142,7 +203,7 @@ const AdminPage = () => {
         setDatasets((prev) => [...prev, newEntry]);
       }
 
-      setNewDataset({ name: "", description: "", status: "Draft", roles: [] });
+      setNewDataset({ name: "", description: "", converted: "No", status: "Draft", roles: [] });
       setIsEditMode(false);
       setEditId(null);
       setShowModal(false);
@@ -161,10 +222,12 @@ const AdminPage = () => {
   };
 
   const handleEdit = (dataset) => {
+    console.log(dataset);
     setNewDataset({
       name: dataset.name,
       description: dataset.description,
-      status: dataset.status,
+      converted:"No",
+      status: dataset.status || "Draft",
       roles: dataset.roles || [],
     });
     setEditId(dataset.id);
@@ -186,7 +249,7 @@ const AdminPage = () => {
               onClick={() => {
                 setShowModal(true);
                 setIsEditMode(false);
-                setNewDataset({ name: "", description: "", status: "Draft", roles: [] });
+                setNewDataset({ name: "", description: "",converted:"No", status: "Draft", roles: [] });
               }}
             >
               <Plus className="w-5 h-5 mr-2" /> Add Dataset
@@ -219,7 +282,16 @@ const AdminPage = () => {
             </div>
 
             <div className="form-control mb-2">
-              <label className="label text-base-content">Description</label>
+              <label className="label text-base-content flex justify-between">
+                Description
+                <button
+                  type="button"
+                  onClick={() => setExpandType("description")}
+                  className="btn btn-xs btn-outline"
+                >
+                  <Maximize2 className="w-4 h-4" />
+                </button>
+              </label>
               <textarea
                 className="textarea textarea-bordered bg-base-100 text-base-content"
                 value={newDataset.description}
@@ -299,6 +371,33 @@ const AdminPage = () => {
                   setEditId(null);
                 }}
               >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {(expandType === "description" || expandType === "instruction") && (
+        <div className="fixed inset-0 bg-black bg-opacity-60 flex justify-center items-center z-50 overflow-auto">
+          <div className="bg-base-200 p-4 w-full max-w-4xl max-h-[90vh] rounded-lg shadow-xl flex flex-col">
+            <h3 className="text-lg font-bold mb-2">
+              Edit {expandType.charAt(0).toUpperCase() + expandType.slice(1)}
+            </h3>
+            <textarea
+              className="textarea textarea-bordered bg-base-100 text-base-content resize both min-h-[200px] max-h-[500px] min-w-[100%] overflow-auto"
+              style={{
+                resize: "both",
+                width: "100%",
+                height: "500px",
+              }}
+              value={newDataset[expandType]}
+              onChange={(e) => setNewDataset({ ...newDataset, [expandType]: e.target.value })}
+            />
+            <div className="mt-4 flex justify-end gap-2">
+              <button className="btn btn-success" onClick={() => setExpandType(null)}>
+                Save
+              </button>
+              <button className="btn btn-neutral" onClick={() => setExpandType(null)}>
                 Cancel
               </button>
             </div>
