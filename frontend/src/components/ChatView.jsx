@@ -43,9 +43,11 @@ const saveMessage = async (msg, selected) => {
   };
 
   try {
+    console.log(1);
     const { data: existingData } = await axios.get(`${API_BASE_URL}/api/conversation/${chatId}`);
     const existingMessages = existingData?.messages || [];
-
+    
+    console.log(existingData);
     const updatedPayload = {
       chatId,
       adminId: selected,
@@ -88,7 +90,7 @@ const ChatView = () => {
   const [thinking, setThinking] = useState(false);
   const [selected, setSelected] = useState('');
   const [selectedDataset, setSelectedDataset] = useState(null);
-  const [gpt, setGpt] = useState(gptModels[0]);
+  const [gpt, setGpt] = useState(gptModels[1]);
   const [messages, addMessage] = useContext(ChatContext);
   const [modalOpen, setModalOpen] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
@@ -102,6 +104,7 @@ const ChatView = () => {
   const location = useLocation(); // ⬅️ Get route state
 
   useEffect(() => {
+    
     const fetchDatasets = async () => {
       try {
         const response = await axios.get(`${API_BASE_URL}/api/datasets`);
@@ -114,8 +117,20 @@ const ChatView = () => {
   }, []);
 
   
-
   useEffect(() => {
+  if (location.state?.checkDataset && !selectedDataset) {
+    
+    const timer = setTimeout(() => {
+    alert("Please select the data set!");
+
+    // Clear the checkDataset flag so alert doesn’t show again
+    navigate(location.pathname, { replace: true, state: {} });
+    }, 400);
+  }
+  }, [location.state, selectedDataset]);
+
+
+  /*useEffect(() => {
     if (location.state?.checkDataset) {
       // Show alert only once
       const timer = setTimeout(() => {
@@ -126,7 +141,7 @@ const ChatView = () => {
 
       return () => clearTimeout(timer);
     }
-  }, [location.state, navigate]);
+  }, [location.state, navigate]);*/
 
   const handleSubmit = async () => {
   const payload = {
@@ -168,7 +183,7 @@ const ChatView = () => {
 
   const sendMessage = async (e) => {
     e.preventDefault();
-
+    
     const key = window.localStorage.getItem('api-key');
     /*if (!key) {
       setModalOpen(true);
@@ -220,7 +235,7 @@ const ChatView = () => {
         const data = await res.json();
         responseText = data?.response;
       } 
-      else if (selected === options[0]) {
+      else if (selected === 'gpt-4') {
         const res = await fetch(`${API_BASE_URL}/ask`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -239,7 +254,7 @@ const ChatView = () => {
       }
 
       if (responseText) {
-        await updateMessage(`${responseText}\n\nIs there anything else you want me to do?`, true, selected);
+        await updateMessage(`${responseText}`, true, selected);
       }
     } catch (err) {
       alert(`Error: ${err.message || err} - please try again later.`);
@@ -359,6 +374,7 @@ const ChatView = () => {
             </option>
           ))}
         </select>
+
         <div className="flex items-stretch justify-between w-full">
           <textarea
             ref={inputRef}

@@ -80,6 +80,7 @@ export const davinci = async (prompt, key, gptVersion, filePath = './data.txt') 
 
   const retriever = vectorstore.asRetriever({ k: 5 }); // Retrieve top 5 chunks
   
+  console.log(1);
   const chain = ConversationalRetrievalQAChain.fromLLM(model, retriever, {
     memory,
     qaPrompt: chatPrompt,

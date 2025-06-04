@@ -19,7 +19,7 @@ const openaiEmbeddings = new OpenAI({
     apiKey: OPENAI_API_KEY,
     organization: 'org-DukPxm8sEENmwFivEQvtylgA',
 });
-//console.log(OPENAI_API_KEY);
+console.log(OPENAI_API_KEY);
 /**
  * Retrieves relevant chunks from Pinecone based on a user query and a specific dataset ID.
  *

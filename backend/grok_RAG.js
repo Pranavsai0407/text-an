@@ -1,135 +1,56 @@
-/*import { ChatOpenAI } from 'langchain/chat_models/openai';
 import { ChatXAI } from '@langchain/xai';
-
-
-import { RecursiveCharacterTextSplitter } from 'langchain/text_splitter';
-import { MemoryVectorStore } from 'langchain/vectorstores/memory';
 import { BufferMemory } from 'langchain/memory';
-import { ChatPromptTemplate, SystemMessagePromptTemplate, HumanMessagePromptTemplate, MessagesPlaceholder } from 'langchain/prompts';
+import {
+  ChatPromptTemplate,
+  SystemMessagePromptTemplate,
+  HumanMessagePromptTemplate,
+  MessagesPlaceholder
+} from 'langchain/prompts';
 import { ConversationalRetrievalQAChain } from 'langchain/chains';
-
-import { getDatasetById } from './controllers/datasets.js';
 import { getInstructionsById } from './controllers/instructions.js';
+import { retrieveChunks } from './retrieveChunks.js';
 import dotenv from 'dotenv';
 dotenv.config();
 
-// Shared memory for chat history
-
+// Shared memory
 const memory = new BufferMemory({
   returnMessages: true,
   memoryKey: 'chat_history',
 });
-class xAIEmbeddings {
-    constructor(apiKey) {
-      this.chat = new ChatXAI({
-        xai_api_key: apiKey,
-        model: 'grok-3-latest',
-      });
-    }
-  
-    async embedQuery(text) {
-        const response = await this.chat.invoke([
-          ['system', 'Generate a vector embedding for the following text, return ONLY an array of numbers.'],
-          ['human', text],
-        ]);
-      
-        // Try safely parsing only if it looks like a JSON array
-        try {
-          const cleaned = response.content.trim();
-          if (cleaned.startsWith('[') && cleaned.endsWith(']')) {
-            return JSON.parse(cleaned);
-          } else {
-            throw new Error(`Invalid embedding response: ${cleaned}`);
-          }
-        } catch (err) {
-          console.error('Failed to parse embedding vector from Grok:', response.content);
-          throw err;
-        }
-      }
-      
-  
-    async embedDocuments(documents) {
-      const embeddings = [];
-      for (const doc of documents) {
-        const embedding = await this.embedQuery(doc);
-        embeddings.push(embedding);
-      }
-      return embeddings;
-    }
-  }
-  
-const extractPlainTextFromDataset = (dataset) => {
-  const lines = [];
-
-  const traverse = (node, depth = 0) => {
-    const indent = '  '.repeat(depth);
-    lines.push(`${indent}Name: ${node.name}`);
-    lines.push(`${indent}Description: ${node.description}`);
-    lines.push(`${indent}Status: ${node.status}`);
-
-    if (node.roles && Array.isArray(node.roles)) {
-      node.roles.forEach((role, i) => {
-        lines.push(`${indent}Role #${i + 1}: ${role.description || ''}`);
-        if (role.instruction?.content) {
-          lines.push(`${indent}Instruction: ${role.instruction.content}`);
-        }
-      });
-    }
-
-    if (node.children && Array.isArray(node.children)) {
-      node.children.forEach((child) => traverse(child, depth + 1));
-    }
-  };
-
-  traverse(dataset);
-  return lines.join('\n\n');
-};
 
 export const grokChat_RAG = async (userInput, datasetId) => {
-   const apiKey = process.env.XAI_API_KEY;
-  if (!apiKey) throw new Error('GROK_API_KEY not found in environment');
+  const apiKey = process.env.XAI_API_KEY;
+  if (!apiKey) throw new Error('GROK_API_KEY not found');
 
-  const dataset = await getDatasetById(datasetId);
+  // Get instructions
   const instructions = await getInstructionsById('main');
-  if (!dataset) throw new Error('Dataset not found in DynamoDB');
-  
+  const guidance = instructions.instructions
+    .map(inst => `- ${inst.enhanced_text.replace(/^"|"$/g, '')}`)
+    .join('\n');
 
-  const rawText = extractPlainTextFromDataset(dataset);
+  // Get relevant chunks from Pinecone
+  const chunks = await retrieveChunks(userInput, datasetId, 10);
+  const contextText = chunks.map(chunk => chunk.text).join('\n\n');
 
-  const splitter = new RecursiveCharacterTextSplitter({
-    chunkSize: 500,
-    chunkOverlap: 50,
-  });
-  const docs = await splitter.createDocuments([rawText]);
+  // Fake retriever just for ConversationalRetrievalQAChain requirement
+  const fakeRetriever = {
+    getRelevantDocuments: async () =>
+      chunks.map(chunk => ({
+        pageContent: chunk.text,
+        metadata: chunk.metadata || {},
+      })),
+  };
 
-
-  const embeddings = new xAIEmbeddings(apiKey);
-  const vectorstore = await MemoryVectorStore.fromDocuments(docs, embeddings);
-
-  const retriever = vectorstore.asRetriever({ k: 5 });
-
-  
-  const model = new ChatXAI({
-    xai_api_key: apiKey,
-    model: 'grok-3-latest',
-  });
-
-
- // Extract enhanced_texts
-const guidance = instructions.instructions
-  .map(inst => `- ${inst.enhanced_text.replace(/^"|"$/g, '')}`)
-  .join('\n');
-console.log(guidance);
-// Prompt with context + instruction guidelines
-const chatPrompt = ChatPromptTemplate.fromMessages([
+  // Define prompt
+  const chatPrompt = ChatPromptTemplate.fromMessages([
   SystemMessagePromptTemplate.fromTemplate(
-    `You are a highly intelligent assistant with access to user-provided documents.
+    `You are a helpful assistant with access to user-provided context.
 
-Below are refined instructions on how to handle specific types of user queries:
+Instructions:
 ${guidance}
 
-Use only the context provided below to answer user questions accurately and concisely.
-If the answer is not found in the context, say "I don't know".
+Use only the context below to answer the user's question.
+If the answer is not in the context, say "I don't know".
 
 Context:
 {context}`
@@ -138,23 +59,29 @@ Context:
   HumanMessagePromptTemplate.fromTemplate('{question}'),
 ]);
 
-  // 🔗 Create the Conversational RAG chain
-  const chain = ConversationalRetrievalQAChain.fromLLM(model, retriever, {
+const model = new ChatXAI({
+  xai_api_key: apiKey,
+  model: 'grok-3-latest',
+});
+
+// Pass both `question` and `context` in the SINGLE `question` input
+
+  // Create the chain
+  const chain = ConversationalRetrievalQAChain.fromLLM(model, fakeRetriever, {
     memory,
     qaPrompt: chatPrompt,
     returnSourceDocuments: false,
   });
 
-  // 🤖 Run the chain
-  const response = await chain.call({ question: userInput });
-
-  console.log(response.text);
-  //console.log('Embedding raw response from Grok:', response.content);
+  // Run the chain
+  const response = await chain.call({
+  question: `Context:\n${contextText}\n\nQuestion:\n${userInput}`,
+  });
 
   return response.text;
-};*/
+};
 
-import { ChatXAI } from '@langchain/xai';
+/*import { ChatXAI } from '@langchain/xai';
 import { BufferMemory } from 'langchain/memory';
 import {
   ChatPromptTemplate,
@@ -179,31 +106,35 @@ export const grokChat_RAG = async (userInput, datasetId) => {
   const apiKey = process.env.XAI_API_KEY;
   if (!apiKey) throw new Error('GROK_API_KEY not found');
 
-  const instructions = await getInstructionsById('main');
-  if (!instructions) throw new Error('Instructions not found');
+  //const dataset = await getDatasetById(datasetId);
 
-  // 🔍 Retrieve relevant chunks from Pinecone
-  const chunks = await retrieveChunks(userInput, datasetId, 5);
-  const contextText = chunks.map(chunk => chunk.text).join('\n\n');
-  console.log(contextText);
-  // 🧭 Format refined guidance
-  const guidance = instructions.instructions
+  const instructions = await getInstructionsById('main');
+  console.log(instructions.instructions);
+  var guidance="";
+  if (instructions.instructions) {
+    guidance = instructions.instructions
     .map(inst => `- ${inst.enhanced_text.replace(/^"|"$/g, '')}`)
     .join('\n');
+  };
+   
+  
+  // 🔍 Retrieve relevant chunks from Pinecone
+  const chunks = await retrieveChunks(userInput, datasetId, 10);
+  const contextText = chunks.map(chunk => chunk.text).join('\n\n');
+  //console.log(contextText);
+  // 🧭 Format refined guidance
+  //console.log(guidance);
 
   // 📜 Prompt template with context + guidance
   const chatPrompt = ChatPromptTemplate.fromMessages([
     SystemMessagePromptTemplate.fromTemplate(
-      `You are a highly intelligent assistant with access to user-provided documents.
+      `
+       You are a highly intelligent assistant with access to user-provided documents.
+       Use only the context provided below to answer user questions accurately and concisely.
+      If the answer is not in the context, respond with "I don't know".
 
-Below are refined instructions on how to handle specific types of user queries:
-${guidance}
-
-Use only the context provided below to answer user questions accurately and concisely.
-If the answer is not found in the context, say "I don't know".
-
-Context:
-${contextText}`
+      When providing image links, format them in Markdown so they render as images in the chat interface. For example:
+      - Solar Street Light: ![Solar Street Light](https://example.com/solar-street-light.jpg)`
     ),
     new MessagesPlaceholder('chat_history'),
     HumanMessagePromptTemplate.fromTemplate('{question}'),
@@ -238,8 +169,8 @@ ${contextText}`
   console.log(1);
   // 🚀 Run the chain with the user question
   const response = await chain.call({
-    question: userInput,
+    question: `Your foremost directive is to strictly adhere to the instructions provided in ${guidance}.  ${userInput} `,
   });
 
   return response.text;
-};
+};*/

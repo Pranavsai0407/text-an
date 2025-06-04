@@ -33,6 +33,10 @@ app.use('/api/instructions', instructionRoutes);
 app.use('/api/roles', roleRoutes);
 app.use('/api/conversation',coversationRoutes);
 
+app.get("/", (req, res) => {
+  res.send("Hello world");
+});
+
 app.post('/ask', async (req, res) => {
   try {
     const { prompt, key, gptVersion } = req.body;
