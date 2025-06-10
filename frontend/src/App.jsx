@@ -4,6 +4,7 @@ import SideBar from './components/SideBar';
 import ChatView from './components/ChatView';
 import ViewRoles from './components/ViewRoles';
 import AdminPage from './components/AdminPage'; // Make sure this exists
+import ChatPage from './components/ChatPage';
 import ViewDataset from './components/ViewDataset';
 import { useEffect, useState } from 'react';
 import Modal from './components/Modal';
@@ -32,6 +33,7 @@ const App = () => {
             <Route path="/admin" element={<AdminPage />} />
             <Route path="/viewRoles" element={<ViewRoles/>} />
             <Route path="/viewDataset/:_id" element={<ViewDataset/>}/>
+            <Route path="/chatPage" element={<ChatPage/>}/>
           </Routes>
         </div>
       </Router>

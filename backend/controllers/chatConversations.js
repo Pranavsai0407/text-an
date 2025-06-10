@@ -76,3 +76,28 @@ export const getConversation = async (req, res) => {
     }
   };
   
+export const getAllConversations = async (req, res) => {
+  const params = {
+    TableName: "ChatConversations",
+  };
+
+  try {
+    const result = await new AWS.DynamoDB().scan(params).promise();
+
+    const chats = result.Items.map(item => ({
+      chatId: item.chatId.S,
+      adminId: item.adminId.S,
+      messages: item.messages.L.map(msg => ({
+        role: msg.M.role.S,
+        content: msg.M.content.S
+      })),
+      status: item.status.S,
+      timestamp: item.timestamp.S
+    }));
+
+    res.status(200).json(chats);
+  } catch (err) {
+    console.error("DynamoDB scan error:", err);
+    res.status(500).json({ message: "Failed to fetch conversations", error: err });
+  }
+};

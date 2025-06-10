@@ -6,7 +6,7 @@ import {
   HumanMessagePromptTemplate,
   MessagesPlaceholder
 } from 'langchain/prompts';
-import { ConversationalRetrievalQAChain } from 'langchain/chains';
+import { RunnableSequence } from 'langchain/schema/runnable';
 import { getInstructionsById } from './controllers/instructions.js';
 import { retrieveChunks } from './retrieveChunks.js';
 import dotenv from 'dotenv';
@@ -28,58 +28,53 @@ export const grokChat_RAG = async (userInput, datasetId) => {
     .map(inst => `- ${inst.enhanced_text.replace(/^"|"$/g, '')}`)
     .join('\n');
 
-  // Get relevant chunks from Pinecone
+  // Retrieve context
   const chunks = await retrieveChunks(userInput, datasetId, 10);
   const contextText = chunks.map(chunk => chunk.text).join('\n\n');
 
-  // Fake retriever just for ConversationalRetrievalQAChain requirement
-  const fakeRetriever = {
-    getRelevantDocuments: async () =>
-      chunks.map(chunk => ({
-        pageContent: chunk.text,
-        metadata: chunk.metadata || {},
-      })),
-  };
+  // Build the prompt
+  const prompt = ChatPromptTemplate.fromMessages([
+    SystemMessagePromptTemplate.fromTemplate(
+      `Your foremost directive is to strictly adhere to the instructions provided in ${guidance}.
+As a highly intelligent assistant with access to user-provided documents:
+Contextual Basis: Formulate all answers exclusively from the information contained within {context}.
+Knowledge Boundary: If the requested information is not explicitly present in {context} , state "I don't know". Do not infer, speculate, or draw upon external knowledge.
+Your sole purpose is to answer user questions accurately and concisely, based only on the provided context and guidance.`
+    ),
+    new MessagesPlaceholder('chat_history'),
+    HumanMessagePromptTemplate.fromTemplate('{question}'),
+  ]);
 
-  // Define prompt
-  const chatPrompt = ChatPromptTemplate.fromMessages([
-  SystemMessagePromptTemplate.fromTemplate(
-    `You are a helpful assistant with access to user-provided context.
-
-Instructions:
-${guidance}
-
-Use only the context below to answer the user's question.
-If the answer is not in the context, say "I don't know".
-
-Context:
-{context}`
-  ),
-  new MessagesPlaceholder('chat_history'),
-  HumanMessagePromptTemplate.fromTemplate('{question}'),
-]);
-
-const model = new ChatXAI({
-  xai_api_key: apiKey,
-  model: 'grok-3-latest',
-});
-
-// Pass both `question` and `context` in the SINGLE `question` input
-
-  // Create the chain
-  const chain = ConversationalRetrievalQAChain.fromLLM(model, fakeRetriever, {
-    memory,
-    qaPrompt: chatPrompt,
-    returnSourceDocuments: false,
+  // Init model
+  const model = new ChatXAI({
+    xai_api_key: apiKey,
+    model: 'grok-3-latest',
   });
+
+  // Combine prompt + model into a chain
+  const chain = RunnableSequence.from([prompt, model]);
+
+  // Load memory
+  const memoryVars = await memory.loadMemoryVariables({});
+  const chatHistory = memoryVars.chat_history ?? [];
 
   // Run the chain
-  const response = await chain.call({
-  question: `Context:\n${contextText}\n\nQuestion:\n${userInput}`,
+  const response = await chain.invoke({
+    context: contextText,
+    question: userInput,
+    chat_history: chatHistory,
   });
 
-  return response.text;
+  // Save conversation to memory
+  await memory.saveContext(
+    { input: userInput },
+    { output: response.content }
+  );
+
+  return response.content;
 };
+
+
 
 /*import { ChatXAI } from '@langchain/xai';
 import { BufferMemory } from 'langchain/memory';

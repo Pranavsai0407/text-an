@@ -8,6 +8,7 @@ import datasetRoutes from './routes/datasets.js';
 import roleRoutes from './routes/roles.js';
 import coversationRoutes from './routes/chatConversations.js';
 import instructionRoutes from './routes/instructions.js';
+import enhancedInstructionRoutes from './routes/enhancedInstructions.js';
 import { grokChat_RAG } from './grok_RAG.js';
 
 const app = express();
@@ -32,7 +33,7 @@ app.use('/api/datasets', datasetRoutes);
 app.use('/api/instructions', instructionRoutes);
 app.use('/api/roles', roleRoutes);
 app.use('/api/conversation',coversationRoutes);
-
+app.use('/api/enhancedInstructions',enhancedInstructionRoutes);
 app.get("/", (req, res) => {
   res.send("Hello world");
 });
