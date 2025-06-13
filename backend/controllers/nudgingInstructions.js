@@ -22,7 +22,7 @@ export const updateInstruction = async (req, res) => {
     }).promise();
 
     const instructionToUpdate = Item.instructions.find(
-      inst => inst.instructionId === instructionId
+      inst => inst.id === instructionId
     );
 
     if (!instructionToUpdate) {
@@ -64,7 +64,7 @@ export const deleteInstruction = async (req, res) => {
     const instructions = data.Item.instructions;
 
     const filteredInstructions = instructions.filter(
-      (inst) => inst.instructionId!== instructionId
+      (inst) => inst.id!== instructionId
     );
 
     if (instructions.length === filteredInstructions.length) {
@@ -108,7 +108,7 @@ export const createInstruction = async (req, res) => {
 
     // Prepare the new instruction
     const newInstruction = {
-      instructionId: uuidv4(),
+      id: uuidv4(),
       instructionText,
       status,
       created_at: new Date().toISOString()
