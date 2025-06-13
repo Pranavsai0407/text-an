@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Chat History Sender</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      max-width: 600px;
+      margin: auto;
+      padding: 2rem;
+    }
+    textarea, button {
+      width: 100%;
+      margin-top: 1rem;
+      padding: 0.75rem;
+      font-size: 1rem;
+    }
+    #responseBox {
+      margin-top: 1rem;
+      padding: 1rem;
+      border: 1px solid #ccc;
+      background: #f9f9f9;
+      white-space: pre-wrap;
+    }
+  </style>
+</head>
+<body>
+  <h2>Send Chat History</h2>
+  
+  <textarea id="chatInput" rows="8" placeholder='Enter chat history JSON here...'></textarea>
+  <button onclick="sendChat()">Send to API</button>
+  
+  <div id="responseBox">Response will appear here.</div>
+
+  <script>
+    async function sendChat() {
+      const input = document.getElementById('chatInput').value;
+      const responseBox = document.getElementById('responseBox');
+
+      let json;
+      try {
+        json = JSON.parse(input);
+      } catch (err) {
+        responseBox.innerText = '❌ Invalid JSON: ' + err.message;
+        return;
+      }
+
+      try {
+        const res = await fetch('https://jkdd07fahf.execute-api.eu-north-1.amazonaws.com/nudging', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(json)
+        });
+
+        const result = await res.json();
+        responseBox.innerText = '✅ Response:\n' + JSON.stringify(result, null, 2);
+      } catch (err) {
+        responseBox.innerText = '❌ Network Error:\n' + err;
+      }
+    }
+  </script>
+</body>
+</html>

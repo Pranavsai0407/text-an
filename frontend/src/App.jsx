@@ -6,6 +6,7 @@ import ViewRoles from './components/ViewRoles';
 import AdminPage from './components/AdminPage'; // Make sure this exists
 import ChatPage from './components/ChatPage';
 import ViewDataset from './components/ViewDataset';
+import InstructionsPage from './components/InstructionsPage';
 import { useEffect, useState } from 'react';
 import Modal from './components/Modal';
 import Setting from './components/Setting';
@@ -34,6 +35,7 @@ const App = () => {
             <Route path="/viewRoles" element={<ViewRoles/>} />
             <Route path="/viewDataset/:_id" element={<ViewDataset/>}/>
             <Route path="/chatPage" element={<ChatPage/>}/>
+            <Route path="/instructions" element={<InstructionsPage/>}/>
           </Routes>
         </div>
       </Router>

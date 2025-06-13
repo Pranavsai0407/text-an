@@ -104,15 +104,125 @@ const ChatView = () => {
   const [selectedBotMessage, setSelectedBotMessage] = useState(null);
   const [previousUserMessage, setPreviousUserMessage] = useState(null);
   const [addInstructionModalOpen, setAddInstructionModalOpen] = useState(false);
+  const [addNudgingInstructionModalOpen, setAddNudgingInstructionModalOpen] = useState(false);
   const [instructionsList, setInstructionsList] = useState([
     { text: "Fix grammar",value:0.9, active: true },
     { text: "Improve clarity",value: 0.7, active: false },
   ]);
+  const [nudginginstructionsList, setNudgingInstructionsList] = useState([
+    { text: "Fix grammar",value:0.9, active: true },
+    { text: "Improve clarity",value: 0.7, active: false },
+  ]);
   const [editIndex, setEditIndex] = useState(null);
+  const [editNudgingIndex, setEditNudgingIndex] = useState(null);
   const [editedInstruction, setEditedInstruction] = useState({ text: ''});
+  const [editedNudgingInstruction, setEditedNudgingInstruction] = useState({ text: ''});
 
-
+  
   const location = useLocation(); // ⬅️ Get route state
+  let Isfollowup=false;
+
+  const timer1Ref = useRef(null);
+  const timer2Ref = useRef(null);
+  const timer1Cancelled = useRef(false);
+  const timer2Cancelled = useRef(false);
+
+const clearTimers = () => {
+  if (timer1Ref.current) {
+    clearTimeout(timer1Ref.current);
+    timer1Ref.current = null;
+    timer1Cancelled.current = true;
+    console.log("Cleared Timer 1");
+  }
+  if (timer2Ref.current) {
+    clearTimeout(timer2Ref.current);
+    timer2Ref.current = null;
+    timer2Cancelled.current = true;
+    console.log("Cleared Timer 2");
+  }
+};
+
+const sendChatHistory = async () => {
+  if (!messages || messages.length === 0 || Isfollowup) {
+    console.log("⚠️ No messages to send — skipping sendChatHistory()");
+    clearTimers();
+    return;
+  }
+
+const chat = messages.map((msg) => ({
+  role: msg.ai ? "assistant" : "user",
+  content: msg.text,
+}));
+
+try {
+  const response = await axios.post(
+    "https://jkdd07fahf.execute-api.eu-north-1.amazonaws.com/nudging",
+    { chatHistory: chat }, 
+    {
+      headers: {
+        "Content-Type": "application/json"
+      }
+    }
+  );
+  console.log(response);
+  await updateMessage(response.data.nudgingReply,true,selected);
+  Isfollowup=true;
+} catch (err) {
+    console.error("❌ Failed to send chat history:", err);
+  }
+};
+
+
+
+const startTimer1 = () => {
+  if (!timer1Ref.current) {
+    clearTimers();
+    timer1Cancelled.current = false;
+
+    timer1Ref.current = setTimeout(async () => {
+      timer1Ref.current = null;
+      if (!timer1Cancelled.current) {
+        //await updateMessage("Timer 1 completed", true, selected);
+        console.log("Timer 1 completed");
+        await sendChatHistory(); // ✅ Send only on real completion
+      }
+    }, 10000);
+    console.log("Started Timer 1");
+  }
+};
+
+const startTimer2 = () => {
+  if (!timer2Ref.current) {
+    clearTimers();
+    timer2Cancelled.current = false;
+
+    timer2Ref.current = setTimeout(async () => {
+      timer2Ref.current = null;
+      if (!timer2Cancelled.current) {
+        console.log("Timer 2 completed");
+        await sendChatHistory(); // ✅ Send only on real completion
+      }
+    }, 20000);
+    console.log("Started Timer 2");
+  }
+};
+
+
+
+// Detect form value & thinking changes
+useEffect(() => {
+  if (thinking) {
+    console.log("Thinking mode active: clearing all timers");
+    clearTimers();
+  } else {
+    if (formValue.trim() === "") {
+      startTimer1();
+    } else {
+      startTimer2();
+    }
+  }
+}, [formValue, thinking]);
+
 
   useEffect(() => {
     
@@ -168,6 +278,27 @@ const ChatView = () => {
   }
 };
 
+  const fetchNudgingInstructions = async (botMessage) => {
+  try {
+    const response = await axios.post(
+      "https://yfuiybxxia.execute-api.eu-north-1.amazonaws.com/instructions",
+      { bot_reply: botMessage }
+    );
+    const data = response.data.instructions;
+
+    // Convert the response to your desired format
+    return data.map((inst) => ({
+      id: inst.instructionId,
+      text: inst.instruction,
+      value: inst.score,
+      active: inst.status === "ACTIVE",
+    }));
+  } catch (error) {
+    console.error("Failed to fetch instructions", error);
+    return [];
+  }
+};
+
   /*useEffect(() => {
     if (location.state?.checkDataset) {
       // Show alert only once
@@ -205,6 +336,10 @@ const handleEditInstruction = (index) => {
   setEditIndex(index);
   setEditedInstruction({ ...instructionsList[index] });
 };
+const handleEditNudgingInstruction = (index) => {
+  setEditNudgingIndex(index);
+  setEditedNudgingInstruction({ ...nudginginstructionsList[index] });
+};
 
 const handleSaveEdit = async () => {
   const updated = [...instructionsList];
@@ -224,6 +359,25 @@ const handleSaveEdit = async () => {
     console.error('Update failed:', error);
   }
 };
+const handleNudgingSaveEdit = async () => {
+  const updated = [...nudginginstructionsList];
+  const edited = { ...editedNudgingInstruction };
+  
+  try {
+    await axios.put(`${API_BASE_URL}/api/nudgingInstructions`, {
+      instructionId: updated[editNudgingIndex].id,
+      updatedText: edited.text, // adjust field name
+      status: updated[editNudgingIndex].active ? 'ACTIVE':'INACTIVE' || 'ACTIVE', // optional
+    });
+
+    updated[editNudgingIndex].text = edited.text;
+    setNudgingInstructionsList(updated);
+    setEditNudgingIndex(null);
+  } catch (error) {
+    console.error('Update failed:', error);
+  }
+};
+
 
 const handleDeleteInstruction = async (index) => {
   const Id = instructionsList[index].id;
@@ -233,6 +387,19 @@ const handleDeleteInstruction = async (index) => {
 
     const updated = instructionsList.filter((_, i) => i !== index);
     setInstructionsList(updated);
+  } catch (error) {
+    console.error('Delete failed:', error);
+  }
+};
+
+const handleDeleteNudgingInstruction = async (index) => {
+  const Id = nudginginstructionsList[index].id;
+  //console.log(nudginginstructionsList[index]);
+  try {
+    await axios.delete(`${API_BASE_URL}/api/nudgingInstructions/${Id}`);
+
+    const updated = nudginginstructionsList.filter((_, i) => i !== index);
+    setNudgingInstructionsList(updated);
   } catch (error) {
     console.error('Delete failed:', error);
   }
@@ -275,11 +442,12 @@ const handleDeleteInstruction = async (index) => {
 
     setFormValue('');
     await updateMessage(cleanPrompt, false, selected);
-
+    Isfollowup=false;
     if (rejectionKeywords.includes(lowerPrompt)) {
       await updateMessage("Can you please share your contact info so we can follow up with you if needed?", true, selected);
       return;
     }
+
 
     setThinking(true);
 
@@ -332,6 +500,7 @@ const handleDeleteInstruction = async (index) => {
 
       if (responseText) {
         await updateMessage(`${responseText}`, true, selected);
+        Isfollowup=false;
       }
     } catch (err) {
       alert(`Error: ${err.message || err} - please try again later.`);
@@ -384,138 +553,275 @@ const handleDeleteInstruction = async (index) => {
   
   
   return (
-    
     <main className="relative flex flex-col h-screen p-1 overflow-hidden bg-[#272629]">
       {trainingSidebarOpen && selectedBotMessage && (
-  <div className="fixed top-0 right-0 h-full w-[40rem] bg-[#1e1e1e] text-white shadow-xl border-l border-gray-600 p-5 overflow-y-auto z-50">
-    <div className="flex justify-between items-center mb-4">
-      <h3 className="text-lg font-semibold">Train Message</h3>
-      <button
-        className="text-red-400 hover:text-red-600"
-        onClick={() => setTrainingSidebarOpen(false)}
-      >
-        ✖
-      </button>
-    </div>
+        <div className="fixed top-0 right-0 h-full w-[40rem] bg-[#1e1e1e] text-white shadow-xl border-l border-gray-600 p-5 overflow-y-auto z-50">
+          <div className="flex justify-between items-center mb-4">
+            <h3 className="text-lg font-semibold">Train Message</h3>
+            <button
+              className="text-red-400 hover:text-red-600"
+              onClick={() => setTrainingSidebarOpen(false)}
+            >
+              ✖
+            </button>
+          </div>
 
-    <div className="mb-4">
-      <h4 className="text-sm text-gray-300 mb-1">Previous User Message</h4>
-      <div className="bg-[#2c2c2c] p-3 rounded">{previousUserMessage?.text || "N/A"}</div>
-    </div>
+          <div className="mb-4">
+            <h4 className="text-sm text-gray-300 mb-1">
+              Previous User Message
+            </h4>
+            <div className="bg-[#2c2c2c] p-3 rounded">
+              {previousUserMessage?.text || "N/A"}
+            </div>
+          </div>
 
-    <div className="mb-4">
-      <h4 className="text-sm text-gray-300 mb-1">Bot Message</h4>
-      <div className="bg-[#2c2c2c] p-3 rounded">{selectedBotMessage?.text}</div>
-    </div>
+          <div className="mb-4">
+            <h4 className="text-sm text-gray-300 mb-1">Bot Message</h4>
+            <div className="bg-[#2c2c2c] p-3 rounded">
+              {selectedBotMessage?.text}
+            </div>
+          </div>
 
-<div className="mb-4">
-  <h4 className="text-sm text-gray-300 mb-1">Instructions</h4>
+          <div className="mb-4">
+            <h4 className="text-sm text-gray-300 mb-1">Instructions</h4>
 
-  {/* Scrollable Table Container */}
-  <div className="max-h-60 overflow-y-auto border border-gray-600 rounded">
-    <table className="table-auto w-full text-left border-collapse">
-      <thead className="bg-gray-800">
-        <tr>
-          <th className="sticky top-0 z-10 w-2 p-2 border border-gray-600 bg-gray-800">Active</th>
-          <th className="sticky top-0 z-10 w-2 p-2 border border-gray-600 bg-gray-800">Value</th>
-          <th className="sticky top-0 z-10 text-center p-2 border border-gray-600 bg-gray-800">Instruction</th>
-          <th className="sticky top-0 z-10 w-2 p-2 border border-gray-600 bg-gray-800 text-center">Actions</th>
-        </tr>
-      </thead>
-<tbody>
-  {instructionsList.map((inst, i) => (
-    <tr key={i} className="bg-gray-900 text-white">
-      <td className="p-2 border border-gray-600 text-center">
-        <input
-          type="checkbox"
-          checked={inst.active}
-          onChange={async() => {
-            const updated = [...instructionsList];
-            updated[i].active = !updated[i].active;
-            await axios.put(`${API_BASE_URL}/api/enhancedInstructions`, {
-            instructionId: inst.id,
-            updatedText: inst.text, // adjust field name
-            status: updated[i].active ? 'ACTIVE':'INACTIVE' || 'ACTIVE', // optional
-            });
+            {/* Scrollable Table Container */}
+            <div className="max-h-60 overflow-y-auto border border-gray-600 rounded">
+              <table className="table-auto w-full text-left border-collapse">
+                <thead className="bg-gray-800">
+                  <tr>
+                    <th className="sticky top-0 z-10 w-2 p-2 border border-gray-600 bg-gray-800">
+                      Active
+                    </th>
+                    <th className="sticky top-0 z-10 w-2 p-2 border border-gray-600 bg-gray-800">
+                      Value
+                    </th>
+                    <th className="sticky top-0 z-10 text-center p-2 border border-gray-600 bg-gray-800">
+                      Instruction
+                    </th>
+                    <th className="sticky top-0 z-10 w-2 p-2 border border-gray-600 bg-gray-800 text-center">
+                      Actions
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {instructionsList.map((inst, i) => (
+                    <tr key={i} className="bg-gray-900 text-white">
+                      <td className="p-2 border border-gray-600 text-center">
+                        <input
+                          type="checkbox"
+                          checked={inst.active}
+                          onChange={async () => {
+                            const updated = [...instructionsList];
+                            updated[i].active = !updated[i].active;
+                            await axios.put(
+                              `${API_BASE_URL}/api/enhancedInstructions`,
+                              {
+                                instructionId: inst.id,
+                                updatedText: inst.text, // adjust field name
+                                status: updated[i].active
+                                  ? "ACTIVE"
+                                  : "INACTIVE" || "ACTIVE", // optional
+                              }
+                            );
+
+                            setInstructionsList(updated);
+                          }}
+                        />
+                      </td>
+                      <td className="p-2 border border-gray-600">
+                        {inst.value}
+                      </td>
+                      <td className="p-2 border border-gray-600">
+                        {editIndex === i ? (
+                          <textarea
+                            className="w-full bg-gray-800 text-white p-2 rounded resize-y min-h-[80px] max-h-[200px] overflow-y-auto"
+                            value={editedInstruction.text}
+                            onChange={(e) =>
+                              setEditedInstruction({
+                                ...editedInstruction,
+                                text: e.target.value,
+                              })
+                            }
+                          />
+                        ) : (
+                          inst.text
+                        )}
+                      </td>
+                      <td className="p-2 border border-gray-600 text-center">
+                        <div className="flex items-center justify-center gap-3">
+                          {editIndex === i ? (
+                            <>
+                              <button
+                                onClick={handleSaveEdit}
+                                className="text-green-400 hover:text-green-300"
+                                title="Save"
+                              >
+                                ✅
+                              </button>
+                              <button
+                                onClick={() => setEditIndex(null)}
+                                className="text-red-400 hover:text-red-300"
+                                title="Cancel"
+                              >
+                                ❌
+                              </button>
+                            </>
+                          ) : (
+                            <>
+                              <button
+                                onClick={() => handleEditInstruction(i)}
+                                className="text-yellow-400 hover:text-yellow-300"
+                                title="Edit"
+                              >
+                                <Pencil className="w-4 h-4" />
+                              </button>
+                              <button
+                                onClick={() => handleDeleteInstruction(i)}
+                                className="text-red-500 hover:text-red-400"
+                                title="Delete"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
             
-            setInstructionsList(updated);
-          }}
-        />
-      </td>
-      <td className="p-2 border border-gray-600">
-          {inst.value}
-      </td>
-      <td className="p-2 border border-gray-600">
-        {editIndex === i ? (
-          <textarea
-  className="w-full bg-gray-800 text-white p-2 rounded resize-y min-h-[80px] max-h-[200px] overflow-y-auto"
-  value={editedInstruction.text}
-  onChange={(e) =>
-    setEditedInstruction({ ...editedInstruction, text: e.target.value })
-  }
-/>
-        ) : (
-          inst.text
-        )}
-      </td>
-      <td className="p-2 border border-gray-600 text-center">
-        <div className="flex items-center justify-center gap-3">
-          {editIndex === i ? (
-            <>
-              <button
-                onClick={handleSaveEdit}
-                className="text-green-400 hover:text-green-300"
-                title="Save"
-              >
-                ✅
-              </button>
-              <button
-                onClick={() => setEditIndex(null)}
-                className="text-red-400 hover:text-red-300"
-                title="Cancel"
-              >
-                ❌
-              </button>
-            </>
-          ) : (
-            <>
-              <button
-                onClick={() => handleEditInstruction(i)}
-                className="text-yellow-400 hover:text-yellow-300"
-                title="Edit"
-              >
-                <Pencil className="w-4 h-4" />
-              </button>
-              <button
-                onClick={() => handleDeleteInstruction(i)}
-                className="text-red-500 hover:text-red-400"
-                title="Delete"
-              >
-                <Trash2 className="w-4 h-4" />
-              </button>
-            </>
-          )}
+          </div>
+
+          <button
+            onClick={() => setAddInstructionModalOpen(true)}
+            className="w-full bg-green-600 hover:bg-green-700 text-white py-2 px-4 rounded"
+          >
+            ➕ New Instruction
+          </button>
+          <div className="mb-4">
+            <h4 className="text-sm text-gray-300 mb-1">Nudging Instructions</h4>
+
+            {/* Scrollable Table Container */}
+            <div className="max-h-60 overflow-y-auto border border-gray-600 rounded">
+              <table className="table-auto w-full text-left border-collapse">
+                <thead className="bg-gray-800">
+                  <tr>
+                    <th className="sticky top-0 z-10 w-2 p-2 border border-gray-600 bg-gray-800">
+                      Active
+                    </th>
+                    <th className="sticky top-0 z-10 w-2 p-2 border border-gray-600 bg-gray-800">
+                      Value
+                    </th>
+                    <th className="sticky top-0 z-10 text-center p-2 border border-gray-600 bg-gray-800">
+                      Instruction
+                    </th>
+                    <th className="sticky top-0 z-10 w-2 p-2 border border-gray-600 bg-gray-800 text-center">
+                      Actions
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {nudginginstructionsList.map((inst, i) => (
+                    <tr key={i} className="bg-gray-900 text-white">
+                      <td className="p-2 border border-gray-600 text-center">
+                        <input
+                          type="checkbox"
+                          checked={inst.active}
+                          onChange={async () => {
+                            const updated = [...nudginginstructionsList];
+                            updated[i].active = !updated[i].active;
+                            await axios.put(
+                              `${API_BASE_URL}/api/nudgingInstructions`,
+                              {
+                                instructionId: inst.id,
+                                updatedText: inst.text, // adjust field name
+                                status: updated[i].active
+                                  ? "ACTIVE"
+                                  : "INACTIVE" || "ACTIVE", // optional
+                              }
+                            );
+
+                            setNudgingInstructionsList(updated);
+                          }}
+                        />
+                      </td>
+                      <td className="p-2 border border-gray-600">
+                        {inst.value}
+                      </td>
+                      <td className="p-2 border border-gray-600">
+                        {editNudgingIndex === i ? (
+                          <textarea
+                            className="w-full bg-gray-800 text-white p-2 rounded resize-y min-h-[80px] max-h-[200px] overflow-y-auto"
+                            value={editedNudgingInstruction.text}
+                            onChange={(e) =>
+                              setEditedNudgingInstruction({
+                                ...editedNudgingInstruction,
+                                text: e.target.value,
+                              })
+                            }
+                          />
+                        ) : (
+                          inst.text
+                        )}
+                      </td>
+                      <td className="p-2 border border-gray-600 text-center">
+                        <div className="flex items-center justify-center gap-3">
+                          {editNudgingIndex === i ? (
+                            <>
+                              <button
+                                onClick={handleNudgingSaveEdit}
+                                className="text-green-400 hover:text-green-300"
+                                title="Save"
+                              >
+                                ✅
+                              </button>
+                              <button
+                                onClick={() => setEditNudgingIndex(null)}
+                                className="text-red-400 hover:text-red-300"
+                                title="Cancel"
+                              >
+                                ❌
+                              </button>
+                            </>
+                          ) : (
+                            <>
+                              <button
+                                onClick={() => handleEditNudgingInstruction(i)}
+                                className="text-yellow-400 hover:text-yellow-300"
+                                title="Edit"
+                              >
+                                <Pencil className="w-4 h-4" />
+                              </button>
+                              <button
+                                onClick={() => handleDeleteNudgingInstruction(i)}
+                                className="text-red-500 hover:text-red-400"
+                                title="Delete"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            
+          </div>
+          <button
+            onClick={() => setAddNudgingInstructionModalOpen(true)}
+            className="w-full bg-green-600 hover:bg-green-700 text-white py-2 px-4 rounded"
+          >
+            ➕ New Nudging Instruction
+          </button>
         </div>
-      </td>
-    </tr>
-  ))}
-</tbody>
-
-
-    </table>
-  </div>
-</div>
-
-
-
-    <button
-      onClick={() => setAddInstructionModalOpen(true)}
-      className="w-full bg-green-600 hover:bg-green-700 text-white py-2 px-4 rounded"
-    >
-      ➕ New Instruction
-    </button>
-  </div>
-)}
+        
+      )}
 
       <div className="relative flex justify-center my-4">
         <div className="relative w-64">
@@ -549,32 +855,48 @@ const handleDeleteInstruction = async (index) => {
       <section className="flex flex-col flex-grow w-full px-4 overflow-y-scroll sm:px-10 md:px-32">
         {messages.length ? (
           messages.map((message, index) => {
-  const prevMsg = index > 0 ? messages[index - 1] : null;
+            const prevMsg = index > 0 ? messages[index - 1] : null;
 
-  return (
-    <Message
-      key={message.id}
-      message={message}
-      trainingButton={
-        message.ai && (
-          <button
-            className="text-sm text-blue-500 hover:text-blue-950 transition"
-            onClick={() => {
-              setSelectedBotMessage(message);
-              setPreviousUserMessage(prevMsg?.ai ? null : prevMsg);
-              fetchInstructions(message.text).then((fetchedInstructions) => {
-              setInstructionsList(fetchedInstructions); // Set instructions after fetch
-              setTrainingSidebarOpen(true); // Open sidebar only after data is ready
-              });
-            }}
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" height="16px" viewBox="0 -960 960 960" width="16px" fill="#adb8bf"><path d="M206-206q-41-48-63.5-107.5T120-440q0-150 105-255t255-105h8l-64-64 56-56 160 160-160 160-57-57 63-63h-6q-116 0-198 82t-82 198q0 51 16.5 96t46.5 81l-57 57Zm234-14q0-23-15.5-45.5t-34.5-47q-19-24.5-34.5-51T340-420q0-58 41-99t99-41q58 0 99 41t41 99q0 30-15.5 56.5t-34.5 51q-19 24.5-34.5 47T520-220h-80Zm0 100v-60h80v60h-80Zm314-86-57-57q30-36 46.5-81t16.5-96q0-66-27.5-122.5T657-657l57-57q58 50 92 120.5T840-440q0 67-22.5 126.5T754-206Z"/></svg>
-          </button>
-        )
-      }
-    />
-  );
-})
+            return (
+              <Message
+                key={message.id}
+                message={message}
+                trainingButton={
+                  message.ai && (
+                    <button
+                      className="text-sm text-blue-500 hover:text-blue-950 transition"
+                      onClick={() => {
+                        setSelectedBotMessage(message);
+                        setPreviousUserMessage(prevMsg?.ai ? null : prevMsg);
+                        fetchInstructions(message.text).then(
+                          (fetchedInstructions) => {
+                            setInstructionsList(fetchedInstructions); // Set instructions after fetch
+                            //setTrainingSidebarOpen(true); // Open sidebar only after data is ready
+                          }
+                        );
+                        fetchNudgingInstructions(message.text).then(
+                          (fetchedInstructions) => {
+                            setNudgingInstructionsList(fetchedInstructions); // Set instructions after fetch
+                            setTrainingSidebarOpen(true); // Open sidebar only after data is ready
+                          }
+                        );
+                      }}
+                    >
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        height="16px"
+                        viewBox="0 -960 960 960"
+                        width="16px"
+                        fill="#adb8bf"
+                      >
+                        <path d="M206-206q-41-48-63.5-107.5T120-440q0-150 105-255t255-105h8l-64-64 56-56 160 160-160 160-57-57 63-63h-6q-116 0-198 82t-82 198q0 51 16.5 96t46.5 81l-57 57Zm234-14q0-23-15.5-45.5t-34.5-47q-19-24.5-34.5-51T340-420q0-58 41-99t99-41q58 0 99 41t41 99q0 30-15.5 56.5t-34.5 51q-19 24.5-34.5 47T520-220h-80Zm0 100v-60h80v60h-80Zm314-86-57-57q30-36 46.5-81t16.5-96q0-66-27.5-122.5T657-657l57-57q58 50 92 120.5T840-440q0 67-22.5 126.5T754-206Z" />
+                      </svg>
+                    </button>
+                  )
+                }
+              />
+            );
+          })
         ) : (
           <div className="flex justify-center my-2">
             <div className="w-screen font-bold text-3xl text-center">
@@ -629,44 +951,102 @@ const handleDeleteInstruction = async (index) => {
       <Modal title="Setting" modalOpen={modalOpen} setModalOpen={setModalOpen}>
         <Setting modalOpen={modalOpen} setModalOpen={setModalOpen} />
       </Modal>
-      <Modal title="Add Instruction" modalOpen={addInstructionModalOpen} setModalOpen={setAddInstructionModalOpen}>
-  <div className="space-y-4">
-    <input
-      type="text"
-      placeholder="Instruction text..."
-      className="input input-bordered w-full"
-      onKeyDown={async (e) => {
-        if (e.key === "Enter") {
-          const newText = e.target.value.trim();
-          if (newText) {
-            try {
-              // Call your API endpoint using Axios
-              const response = await axios.post(`${API_BASE_URL}/api/enhancedInstructions`, { 
-                enhanced_text: newText,
-                status: "ACTIVE" 
-              });
-              console.log(response.data.instruction);
-              // Update local state with the response data
-              setInstructionsList([...instructionsList, {
-                value:0, 
-                text: newText, 
-                active: true,
-                id: response.data.instruction.instructionId, // Get ID from response
-              }]);
-              
-              e.target.value = '';
-              setAddInstructionModalOpen(false);
-            } catch (error) {
-              console.error('Error creating instruction:', error);
-              // You can add user feedback here (e.g., toast notification)
-            }
-          }
-        }
-      }}
-    />
-    <p className="text-sm text-gray-500">Press Enter to add</p>
-  </div>
-</Modal>
+      <Modal
+        title="Add Instruction"
+        modalOpen={addInstructionModalOpen}
+        setModalOpen={setAddInstructionModalOpen}
+      >
+        <div className="space-y-4">
+          <input
+            type="text"
+            placeholder="Instruction text..."
+            className="input input-bordered w-full"
+            onKeyDown={async (e) => {
+              if (e.key === "Enter") {
+                const newText = e.target.value.trim();
+                if (newText) {
+                  try {
+                    // Call your API endpoint using Axios
+                    const response = await axios.post(
+                      `${API_BASE_URL}/api/enhancedInstructions`,
+                      {
+                        enhanced_text: newText,
+                        status: "ACTIVE",
+                      }
+                    );
+                    console.log(response.data.instruction);
+                    // Update local state with the response data
+                    setInstructionsList([
+                      ...instructionsList,
+                      {
+                        value: 0,
+                        text: newText,
+                        active: true,
+                        id: response.data.instruction.instructionId, // Get ID from response
+                      },
+                    ]);
+
+                    e.target.value = "";
+                    setAddInstructionModalOpen(false);
+                  } catch (error) {
+                    console.error("Error creating instruction:", error);
+                    // You can add user feedback here (e.g., toast notification)
+                  }
+                }
+              }
+            }}
+          />
+          <p className="text-sm text-gray-500">Press Enter to add</p>
+        </div>
+      </Modal>
+      <Modal
+        title="Add Nudging Instruction"
+        modalOpen={addNudgingInstructionModalOpen}
+        setModalOpen={setAddNudgingInstructionModalOpen}
+      >
+        <div className="space-y-4">
+          <input
+            type="text"
+            placeholder="Instruction text..."
+            className="input input-bordered w-full"
+            onKeyDown={async (e) => {
+              if (e.key === "Enter") {
+                const newText = e.target.value.trim();
+                if (newText) {
+                  try {
+                    // Call your API endpoint using Axios
+                    const response = await axios.post(
+                      `${API_BASE_URL}/api/nudgingInstructions`,
+                      {
+                        instructionText: newText,
+                        status: "ACTIVE",
+                      }
+                    );
+                    //console.log(response.data.instruction);
+                    // Update local state with the response data
+                    setNudgingInstructionsList([
+                      ...nudginginstructionsList,
+                      {
+                        value: 0,
+                        text: newText,
+                        active: true,
+                        id: response.data.instruction.instructionId, // Get ID from response
+                      },
+                    ]);
+
+                    e.target.value = "";
+                    setAddNudgingInstructionModalOpen(false);
+                  } catch (error) {
+                    console.error("Error creating instruction:", error);
+                    // You can add user feedback here (e.g., toast notification)
+                  }
+                }
+              }
+            }}
+          />
+          <p className="text-sm text-gray-500">Press Enter to add</p>
+        </div>
+      </Modal>
 
       <div className="fixed bottom-6 right-6 z-50">
         <img
